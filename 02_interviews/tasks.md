@@ -523,3 +523,101 @@ Verify the supported MVP path across services and leave a reliable handoff for l
 - Depend on tasks 1 through 18.
 - Read `_docs/testing-guidelines.md` before writing or changing automated tests.
 - Run only this project's commands; do not run every repository project together.
+
+## Article reconciliation backlog
+
+The following tasks reconcile this project with the workflow and handoff details described in “Build and Ship a Full-Stack App with AI Coding Assistants, Part 2.” Each task has exactly one matching GitHub issue.
+
+## 20. Make environment-variable setup explicit and repeatable
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/41
+
+### Goal
+
+Make environment-variable setup explicit and easy to follow for local development and demos.
+
+### Acceptance criteria
+
+- [ ] Inventory all environment variables consumed by the backend, frontend, canvas-sync service, Docker Compose, and Playwright smoke test.
+- [ ] Update `.env.example` with safe, non-secret development placeholders and concise explanations.
+- [ ] Document which variables are required versus optional and where each variable is consumed.
+- [ ] Make local startup and test commands work with the documented environment-file workflow.
+- [ ] Ensure secrets and real credentials are not committed.
+- [ ] Document common port-conflict and missing-variable recovery steps.
+- [ ] Verify the documented setup with the project test suite.
+
+## 21. Add a standalone product specification and OpenAPI contract
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/42
+
+### Goal
+
+Reconcile the project with the article's specification-first workflow by making product behavior and the frontend/backend agreement explicit artifacts.
+
+### Acceptance criteria
+
+- [ ] Add `docs/spec.md` describing roles, session lifecycle, invite redemption, live collaboration, evaluation privacy, and MVP non-goals.
+- [ ] Add `openapi.yaml` covering implemented REST endpoints, methods, request bodies, response schemas, authentication rules, and error responses.
+- [ ] Include application WebSocket and canvas-token authorization boundaries in the contract documentation.
+- [ ] Compare the contract with FastAPI's generated OpenAPI schema and resolve material mismatches.
+- [ ] Add a documented command or check for repeating the contract comparison after API changes.
+
+## 22. Introduce a replaceable frontend service layer with mock mode
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/43
+
+### Goal
+
+Reconcile the project with the article's frontend-first workflow by centralizing backend calls behind a replaceable service boundary and providing a mock implementation for frontend-only development.
+
+### Acceptance criteria
+
+- [ ] Move authentication, sessions, invites, live-session metadata, canvas credentials, lifecycle controls, and evaluation calls behind one typed frontend service interface.
+- [ ] Provide a mock implementation with representative seeded data and failure states so the frontend runs without FastAPI or Postgres.
+- [ ] Select the real or mock implementation through an explicit environment/configuration setting.
+- [ ] Preserve real-backend behavior and authorization boundaries when the real adapter is selected.
+- [ ] Add unit/component coverage for the mock path and adapter selection.
+- [ ] Document mock mode and how it differs from the Compose-backed demo.
+
+## 23. Add Makefile-style local development commands
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/44
+
+### Goal
+
+Provide the simple command interface described in the article so contributors can run, test, migrate, and validate the project without memorizing per-service commands.
+
+### Acceptance criteria
+
+- [ ] Add a project-level `Makefile` with targets for starting/stopping Compose, backend tests, frontend tests/build, canvas-sync type checking, migrations, and the browser smoke test.
+- [ ] Targets run only commands inside `02_interviews/` and preserve the documented environment-variable workflow.
+- [ ] Add a help/default target listing available commands.
+- [ ] Update the README to use Makefile targets as the primary local workflow while retaining direct commands for troubleshooting.
+- [ ] Verify targets from a clean project shell and document required prerequisites.
+
+## 24. Reconcile SQLite development persistence with the Postgres-first plan
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/45
+
+### Goal
+
+Explicitly reconcile the article's SQLite development progression with this project's decision to use PostgreSQL from the first Compose iteration, while preserving database portability.
+
+### Acceptance criteria
+
+- [ ] Record the decision to keep PostgreSQL as the default Compose/demo database and explain how it differs from the article's SQLite-first sequence.
+- [ ] Verify SQLAlchemy/Alembic usage remains database-agnostic and does not depend on PostgreSQL-only behavior for the MVP domain.
+- [ ] Provide a documented SQLite profile or command for lightweight local backend development where practical, without making it the default Compose path.
+- [ ] Add a persistence restart check proving data survives a backend restart for the supported default profile.
+- [ ] Ensure migration and test instructions clearly identify which database each command uses.
+
+## 25. Add CI coverage for the documented full-stack checks
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/46
+
+### Goal
+
+Make the project's ready-state checks repeatable on every change, reflecting the article's next-step requirement for integration tests and CI.
+
+### Acceptance criteria
+
+- [ ] Add a repository workflow scoped to `02_interviews/`.
+- [ ] Run backend tests, frontend unit tests, frontend production build, and canvas-sync type checking in CI.
+- [ ] Run the browser smoke/integration path against Compose services with required non-secret development variables.
+- [ ] Publish actionable logs or artifacts for failed browser checks.
+- [ ] Keep secrets and real credentials out of workflow files and committed configuration.
+- [ ] Document the CI workflow and its local equivalent in the README.
