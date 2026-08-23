@@ -1,7 +1,13 @@
 # Task Manager — Implementation Plan
 
 ## Purpose
-Build a task-management application with a Trash workflow and support for recurring tasks.
+Build a Django web application for task management with a Trash workflow and support for recurring tasks.
+
+## Technical Constraint
+
+- The application must be implemented as a Django project with a dedicated Django app.
+- User workflows must be exposed through Django URLs, views, forms, templates, and POST actions; a CLI-only implementation does not satisfy the backlog.
+- The default local runtime uses SQLite and Django's test framework/test client unless an issue explicitly requires a browser-level test.
 
 ## Confirmed Product Decisions
 
@@ -93,4 +99,4 @@ interface RecurrenceRule {
 
 ## Remaining Decisions
 - Define storage, authentication, synchronization, and sharing requirements.
-- Define the primary task views, filters, sorting rules, and supported platforms.
+- The primary platform is a server-rendered Django web application. Primary views are Active Tasks, Completed Tasks, and Trash; task lists are ordered by manual order.
