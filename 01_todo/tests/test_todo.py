@@ -138,6 +138,11 @@ class TodoTests(unittest.TestCase):
             self.assertEqual(next_tasks[0].due_date, "2026-02-28")
             self.assertEqual(next_tasks[0].notes, "memo")
 
+    def test_cli_without_command_prints_help(self):
+        with patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertEqual(main([]), 0)
+        self.assertIn("Manage tasks", output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,7 @@ from .service import TaskService
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage tasks")
     parser.add_argument("--store", type=Path, default=Path("tasks.json"))
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
     add = sub.add_parser("add")
     add.add_argument("title")
     add.add_argument("--notes")
@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command is None:
+        build_parser().print_help()
+        return 0
     service = TaskService(JsonTaskRepository(args.store))
     if args.command == "add":
         recurrence = RecurrenceRule(RecurrenceFrequency(args.frequency), args.interval) if args.frequency else None

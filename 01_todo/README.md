@@ -15,6 +15,14 @@ Run the command interface with:
 python3 -m todo_app
 ```
 
+Run it from the `01_todo` directory. With no command it prints help. For
+example:
+
+```sh
+python3 -m todo_app add "Buy milk"
+python3 -m todo_app list
+```
+
 Completed tasks remain in storage for history but are hidden from the default
 active view. Monthly and yearly recurrence dates clamp to the last valid day of
 the target month (for example, January 31 + one month becomes February 28).
