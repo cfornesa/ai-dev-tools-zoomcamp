@@ -1,0 +1,10 @@
+.env
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/*.db
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/canvas-sync/node_modules/

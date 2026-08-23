@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-interviews}
+      POSTGRES_USER: ${POSTGRES_USER:-interviews}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-interviews_dev}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes: [interviews-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
+      DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_CANVAS_SYNC_URL: ${VITE_CANVAS_SYNC_URL:-http://localhost:8787}
+    ports: ["5173:5173"]
+    depends_on: {backend: {condition: service_healthy}}
+
+  canvas-sync:
+    build: ./frontend/canvas-sync
+    environment:
+      CANVAS_TOKEN_SECRET: ${CANVAS_TOKEN_SECRET:-change-me-for-local-development}
+    ports: ["8787:8787"]
+
+volumes:
+  interviews-postgres:

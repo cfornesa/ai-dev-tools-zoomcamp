@@ -1,0 +1,13 @@
+:root { --todo-ink: #172033; --todo-muted: #697386; --todo-bg: #f7f8fb; }
+body { background: var(--todo-bg); color: var(--todo-ink); }
+.navbar { min-height: 64px; }
+.navbar-brand { letter-spacing: -.02em; }
+.nav-link { color: var(--todo-muted); }
+.nav-link.active, .nav-link:hover { color: var(--todo-ink); }
+.eyebrow { color: #6674d9; font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.task-card { border: 1px solid #e5e8ef; border-radius: .75rem; box-shadow: 0 2px 8px rgba(23, 32, 51, .03); }
+.task-card:hover { border-color: #cfd5e2; }
+.form-shell { background: #fff; border: 1px solid #e5e8ef; border-radius: .75rem; margin: 0 auto; max-width: 640px; padding: 2rem; }
+.form-shell label { font-size: .875rem; font-weight: 600; margin-bottom: .4rem; }
+.empty-state { background: #fff; border: 1px dashed #d7dce6; border-radius: .75rem; }
+.empty-icon { align-items: center; background: #eef0ff; border-radius: 50%; color: #6674d9; display: flex; font-size: 1.5rem; height: 3rem; justify-content: center; margin: 0 auto 1rem; width: 3rem; }

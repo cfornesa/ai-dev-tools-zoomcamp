@@ -1,0 +1,28 @@
+import enum, uuid
+from datetime import datetime, timezone
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+from .db import Base
+
+def now(): return datetime.now(timezone.utc)
+class SessionState(str, enum.Enum): scheduled="scheduled"; active="active"; expired="expired-pending-facilitator-action"; completed="completed"
+class AdminUser(Base):
+    __tablename__="admin_users"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); email:Mapped[str]=mapped_column(String(320),unique=True,index=True); password_hash:Mapped[str]=mapped_column(String(255)); role:Mapped[str]=mapped_column(String(32),default="admin"); is_active:Mapped[bool]=mapped_column(Boolean,default=True)
+class InterviewSession(Base):
+    __tablename__="interview_sessions"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); candidate_name:Mapped[str]=mapped_column(String(200)); candidate_email:Mapped[str|None]=mapped_column(String(320),nullable=True); scheduled_at:Mapped[datetime]=mapped_column(DateTime(timezone=True)); duration_minutes:Mapped[int]=mapped_column(Integer); state:Mapped[SessionState]=mapped_column(Enum(SessionState),default=SessionState.scheduled); started_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); end_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); completed_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); facilitator_id:Mapped[str|None]=mapped_column(ForeignKey("admin_users.id"),nullable=True)
+class SessionInvite(Base):
+    __tablename__="session_invites"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); session_id:Mapped[str]=mapped_column(ForeignKey("interview_sessions.id")); token_hash:Mapped[str]=mapped_column(String(64),unique=True); expires_at:Mapped[datetime]=mapped_column(DateTime(timezone=True)); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now); redeemed_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); revoked:Mapped[bool]=mapped_column(Boolean,default=False)
+class SessionParticipant(Base):
+    __tablename__="session_participants"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); session_id:Mapped[str]=mapped_column(ForeignKey("interview_sessions.id")); role:Mapped[str]=mapped_column(String(32)); display_name:Mapped[str]=mapped_column(String(200)); joined_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now); left_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
+class SessionExtension(Base):
+    __tablename__="session_extensions"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); session_id:Mapped[str]=mapped_column(ForeignKey("interview_sessions.id")); minutes:Mapped[int]=mapped_column(Integer); initiated_by:Mapped[str]=mapped_column(ForeignKey("admin_users.id")); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
+class ScorecardTemplate(Base):
+    __tablename__="scorecard_templates"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); name:Mapped[str]=mapped_column(String(200)); categories:Mapped[dict]=mapped_column(JSON)
+class Evaluation(Base):
+    __tablename__="evaluations"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); session_id:Mapped[str]=mapped_column(ForeignKey("interview_sessions.id")); evaluator_id:Mapped[str]=mapped_column(ForeignKey("admin_users.id")); recommendation:Mapped[str]=mapped_column(String(40)); overall_rating:Mapped[int|None]=mapped_column(Integer,nullable=True); overall_notes:Mapped[str|None]=mapped_column(Text,nullable=True); submitted_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
+class EvaluationScore(Base):
+    __tablename__="evaluation_scores"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); evaluation_id:Mapped[str]=mapped_column(ForeignKey("evaluations.id")); category:Mapped[str]=mapped_column(String(100)); rating:Mapped[int]=mapped_column(Integer); rationale:Mapped[str]=mapped_column(Text)
+class EvaluationNote(Base):
+    __tablename__="evaluation_notes"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); evaluation_id:Mapped[str]=mapped_column(ForeignKey("evaluations.id")); author_id:Mapped[str]=mapped_column(ForeignKey("admin_users.id")); note:Mapped[str]=mapped_column(Text); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
+class AuditEvent(Base):
+    __tablename__="audit_events"; id:Mapped[str]=mapped_column(String(36),primary_key=True,default=lambda:str(uuid.uuid4())); event_type:Mapped[str]=mapped_column(String(80)); actor_id:Mapped[str|None]=mapped_column(String(36),nullable=True); actor_role:Mapped[str|None]=mapped_column(String(32),nullable=True); session_id:Mapped[str|None]=mapped_column(String(36),nullable=True); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now); metadata_json:Mapped[dict]=mapped_column(JSON,default=dict)

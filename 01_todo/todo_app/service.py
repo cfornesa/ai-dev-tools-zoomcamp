@@ -44,8 +44,8 @@ class TaskService:
 
     def edit_task(self, task_id: str, **changes) -> Task:
         task = self.repository.get(task_id)
-        if task.status != TaskStatus.ACTIVE:
-            raise ValueError("only active tasks can be edited")
+        if task.status not in (TaskStatus.ACTIVE, TaskStatus.COMPLETED):
+            raise ValueError("only active or completed tasks can be edited")
         allowed = {"title", "notes", "tags", "due_date", "priority", "recurrence"}
         unknown = set(changes) - allowed
         if unknown:
@@ -69,15 +69,15 @@ class TaskService:
 
     def move_to_trash(self, task_id: str) -> Task:
         task = self.repository.get(task_id)
-        if task.status != TaskStatus.ACTIVE:
-            raise ValueError("only active tasks can be trashed")
+        if task.status not in (TaskStatus.ACTIVE, TaskStatus.COMPLETED):
+            raise ValueError("only active or completed tasks can be trashed")
         return self.repository.update(replace(task, status=TaskStatus.TRASHED, deleted_at=_now()))
 
     def restore(self, task_id: str) -> Task:
         task = self.repository.get(task_id)
-        if task.status != TaskStatus.TRASHED:
-            raise ValueError("only trashed tasks can be restored")
-        return self.repository.update(replace(task, status=TaskStatus.ACTIVE, deleted_at=None))
+        if task.status not in (TaskStatus.COMPLETED, TaskStatus.TRASHED):
+            raise ValueError("only completed or trashed tasks can be restored")
+        return self.repository.update(replace(task, status=TaskStatus.ACTIVE, completed_at=None, deleted_at=None))
 
     def empty_trash(self, confirmed: bool) -> int:
         if not confirmed:

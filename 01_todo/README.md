@@ -1,12 +1,35 @@
 # 01 Todo
 
-A dependency-free task manager with an in-memory repository, optional JSON
-storage, Trash recovery, and recurring tasks.
+A Django task manager with SQLite persistence, Trash recovery, and recurring
+tasks. The original `todo_app` package remains available as a small domain and
+CLI compatibility layer; the supported application workflow is the Django web
+application.
+
+From the repository root (`ai-dev-tools-zoomcamp`), install the `01_todo`
+dependencies once:
+
+```sh
+uv --directory 01_todo sync
+```
+
+Then open the web interface with one command:
+
+```sh
+uv --directory 01_todo run python run_web.py
+```
+
+This automatically applies SQLite migrations, starts Django, and opens
+`http://127.0.0.1:8000/` in your default browser. Press `Ctrl-C` to stop it.
+Use `uv run python run_web.py --no-browser` when launching from an environment
+without a desktop browser.
+
+If you are already inside `01_todo`, the equivalent commands are `uv sync` and
+`uv run python run_web.py`.
 
 Run the test suite from this directory with:
 
 ```sh
-python3 -m unittest discover -s tests -v
+python manage.py test
 ```
 
 Run the command interface with:

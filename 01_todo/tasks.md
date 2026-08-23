@@ -73,3 +73,21 @@ Description: Create Django test-client end-to-end tests for deleting, restoring,
 ## 19. Replace the CLI prototype with the required Django application
 Goal: Remove the CLI-only implementation gap and deliver the backlog through Django web workflows.
 Description: Migrate or replace the current command-line prototype with the Django project established in issue 1. Preserve the tested domain behaviors, but expose them through Django URLs, forms, templates, and POST actions. Add a migration/compatibility note if any prototype-only interface is removed.
+
+## 20. Unfreeze completed tasks
+Goal: Keep every task actionable regardless of whether it is active, completed, or in Trash.
+Description: Allow users to restore completed tasks to Active, edit completed-task metadata without changing completion state, and move completed tasks to Trash. Ensure trashed completed tasks can be restored, unrelated metadata remains intact, and no recurrence occurrence is created by editing or trashing a completed task. Update the relevant Django views, forms, templates, service rules, and test-client coverage for all status transitions.
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/20
+
+## 21. Fix completed-task Restore and state-transition regression coverage
+Goal: Make the Completed view's Restore action return a completed task to Active without a 404, and prevent similar state-specific action regressions.
+Description: The Completed view currently posts its Restore button to the shared restore endpoint, but the service accepts only trashed tasks and raises `Http404` for a completed task. Define and implement the explicit completed-to-active transition while preserving unrelated task metadata and clearing the completion timestamp. Keep the existing trashed-to-active restoration behavior intact. Add Django test-client coverage for every action exposed by the Active, Completed, and Trash views, including invalid state/action combinations, and add a browser smoke check for the reported flow.
+Acceptance criteria:
+- [ ] Clicking Restore for a completed task returns to Active without a 404.
+- [ ] Restoring a completed task clears `completed_at`, preserves all unrelated metadata, and does not create a recurrence occurrence.
+- [ ] Restoring a trashed task continues to return it to Active while preserving its metadata and clearing lifecycle timestamps as specified.
+- [ ] Completed Edit and Trash actions continue to succeed, preserve metadata, and do not create recurrence occurrences.
+- [ ] Active Complete, Trash, Edit, and Trash Restore actions continue to succeed.
+- [ ] Django test-client coverage exercises the state/action matrix and the reported regression.
+- [ ] A browser smoke check confirms the Completed → Restore flow lands on the Active task list.
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/21

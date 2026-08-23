@@ -1,0 +1,2 @@
+{% extends "webapp/base.html" %}{% block title %}Empty Trash{% endblock %}{% block content %}
+<div class="form-shell"><div class="alert alert-warning" role="alert"><strong>Empty Trash?</strong><br>This permanently deletes all trashed tasks.</div><form method="post">{% csrf_token %}<div class="d-flex gap-2"><button class="btn btn-danger" name="confirm" value="yes">Permanently delete</button><button class="btn btn-light" name="confirm" value="no">Cancel</button></div></form></div>{% endblock %}
