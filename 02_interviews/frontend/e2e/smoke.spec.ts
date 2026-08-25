@@ -24,6 +24,11 @@ test("administrator, candidate, canvas, completion, and evaluation smoke path",a
   await page.getByLabel("Duration").fill("30");
   await page.getByRole("button",{name:"Create"}).click();
   await expect(page.getByRole("link",{name:candidateName,exact:true})).toBeVisible();
+  await page.getByLabel("Search sessions").fill(candidateName.toLowerCase());
+  await expect(page.getByRole("link",{name:candidateName,exact:true})).toBeVisible();
+  await page.getByLabel("Status filter").selectOption("scheduled");
+  await expect(page.getByRole("link",{name:candidateName,exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Clear criteria"}).click();
   await page.getByRole("link",{name:candidateName,exact:true}).click();
   await page.getByRole("button",{name:"Generate invite"}).click();
   const inviteInput=page.getByLabel("Invite URL");
