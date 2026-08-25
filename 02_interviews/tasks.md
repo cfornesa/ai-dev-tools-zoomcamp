@@ -621,3 +621,512 @@ Make the project's ready-state checks repeatable on every change, reflecting the
 - [ ] Publish actionable logs or artifacts for failed browser checks.
 - [ ] Keep secrets and real credentials out of workflow files and committed configuration.
 - [ ] Document the CI workflow and its local equivalent in the README.
+
+## 26. Stop live-workspace polling after authorization or terminal errors
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/47
+
+### Goal
+
+Make the live workspace stop background work when the session cannot be loaded or the participant is no longer allowed to enter it.
+
+### Acceptance criteria
+
+- [ ] The live workspace performs no further session or canvas-token requests after a terminal authentication, authorization, not-found, or completed-session response.
+- [ ] Polling requests are cancelled or made non-overlapping when a transient retryable failure occurs.
+- [ ] The UI distinguishes access denied, not found, completed, and temporarily unavailable states.
+- [ ] A user-visible retry action is available for retryable failures and does not create duplicate polling loops.
+- [ ] Component tests cover cleanup on unmount, terminal authorization failure, and retryable failure recovery.
+- [ ] A browser-level check verifies that terminal failure does not continue producing requests.
+
+## 27. Add a graceful live-session leave/end flow and release canvas resources
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/48
+
+### Goal
+
+Give participants and facilitators a clear way to leave or finish a live session and ensure the backend services release connection-related resources.
+
+### Acceptance criteria
+
+- [ ] The live workspace exposes a clear Leave/Close action that closes client connections and returns the user to a known page without changing lifecycle state.
+- [ ] Facilitators have a clearly labeled Finish session action that changes the session to completed and shows the resulting terminal state.
+- [ ] Candidates cannot finish or extend a session, and they see a clear waiting/ended state when the facilitator finishes it.
+- [ ] The UI shows connecting, connected, reconnecting, disconnected, and ended states without trapping the user on an indefinite loading screen.
+- [ ] Canvas-sync removes or disposes a room after its last client disconnects, or documents and tests an equivalent bounded resource policy.
+- [ ] Backend and canvas service logs make connect, disconnect, finish, and cleanup events diagnosable without exposing tokens.
+- [ ] Tests cover browser leave, facilitator finish, candidate denial, socket disconnect, and room cleanup.
+
+## 28. Add an end-to-end live-session resilience scenario
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/49
+
+### Goal
+
+Verify the complete administrator/candidate live-session workflow under refresh, reconnect, authorization failure, and finish conditions.
+
+### Acceptance criteria
+
+- [ ] The scenario starts from a clean browser context, authenticates an administrator, creates a session, and opens the live workspace.
+- [ ] The scenario verifies that the workspace reaches a connected/usable state rather than remaining in joining/loading indefinitely.
+- [ ] The scenario opens the same session through a valid candidate invite and verifies same-session access.
+- [ ] The scenario refreshes one participant, temporarily disconnects or restarts canvas-sync, and verifies a visible recoverable state followed by successful rejoin.
+- [ ] The scenario opens a session without valid credentials and verifies a terminal access-denied state with no continuing request loop.
+- [ ] The scenario finishes the session through the facilitator flow and verifies both participants see the ended/completed state.
+- [ ] The test emits bounded diagnostics for failed requests, WebSocket closure, console errors, and service logs without recording passwords or tokens.
+- [ ] The scenario is runnable locally and is integrated with the project's CI checks.
+
+## Open-source canvas replacement backlog
+
+These tasks replace the Tldraw SDK with a self-hosted, Apache-2.0-compatible draw.io/diagrams.net integration while preserving the existing session authorization, two-sided collaboration, drawing, text, shape, selection, and reconnect behavior. The current canvas remains the fallback until the replacement passes the full acceptance criteria.
+
+## 29. Prove the self-hosted draw.io integration and license boundary
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/51
+
+### Goal
+
+Confirm that a self-hosted draw.io editor can be embedded and controlled locally without depending on the hosted `embed.diagrams.net` service, and document the licensing/dependency decision before implementation.
+
+### Acceptance criteria
+
+- [ ] Build a disposable proof of concept under `02_interviews/` that serves the draw.io editor from a local/self-hosted asset or Compose service.
+- [ ] Verify the editor can be embedded in the React frontend and can exchange load/save events with the parent application without relying on a third-party hosted origin.
+- [ ] Verify the local editor supports freehand drawing, text, shapes, selection, undo/redo, zoom/pan, and XML serialization needed by the live workspace.
+- [ ] Record the selected draw.io source/version, Apache 2.0 notices, bundled dependency notices, and any trademark/branding obligations in `docs/canvas-replacement.md`.
+- [ ] Record a go/no-go decision and a fallback plan if self-hosted embedding is not supported by the selected draw.io build.
+- [ ] Do not remove Tldraw or change the production canvas path in this discovery task.
+
+### Constraints
+
+- Depend on tasks 4, 11, 12, and 28.
+- Do not use `embed.diagrams.net` as the production dependency for the replacement.
+- Do not add a dependency or vendor a large editor bundle until the user-approved implementation path is documented.
+
+## 30. Integrate the self-hosted draw.io editor into the live workspace
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/50
+
+### Goal
+
+Replace the Tldraw UI in the live workspace with the approved self-hosted draw.io editor while preserving the current participant and facilitator experience.
+
+### Acceptance criteria
+
+- [ ] The live workspace renders the self-hosted draw.io editor for both facilitator and candidate participants.
+- [ ] The editor provides usable freehand drawing, text, shapes, connectors, selection, deletion, undo/redo, zoom/pan, and keyboard interaction.
+- [ ] The editor is constrained to the canvas container and does not cover or shift the session header, leave, finish, timer, or status controls.
+- [ ] The parent application handles editor initialization, load, save, exit, and error events without exposing tokens or internal stack traces.
+- [ ] The editor origin and frame messaging are restricted to the configured local origin and validated event types.
+- [ ] The Tldraw-specific React components, stylesheet import, and runtime dependency are no longer required by the live workspace.
+
+### Constraints
+
+- Depend on task 29.
+- Preserve the existing session lifecycle and role authorization boundaries.
+- Keep the replacement behind a configuration flag until task 33 is complete.
+
+## 31. Add collaborative draw.io document state and conflict-safe persistence
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/52
+
+### Goal
+
+Give both participants a shared, durable draw.io document model with reconnect behavior equivalent to the current canvas workflow.
+
+### Acceptance criteria
+
+- [ ] A session room has one authoritative draw.io XML document and a monotonically increasing revision/version.
+- [ ] Authorized facilitator and candidate clients receive the current document when joining and receive subsequent updates from the other participant.
+- [ ] Updates are scoped to the session room and reject unauthorized or cross-session clients.
+- [ ] Concurrent saves use revision checks, ordered updates, or an equivalent conflict policy that prevents silent last-write data loss.
+- [ ] Refreshing a participant and restarting canvas-sync restore the latest accepted document without resetting the room to a blank canvas.
+- [ ] Empty-room cleanup and bounded in-memory/storage behavior are documented and tested.
+- [ ] Logs and errors remain free of raw credentials, invite tokens, and private session content.
+
+### Constraints
+
+- Depend on tasks 10, 11, 29, and 30.
+- Reuse the existing authorization boundary where practical, but do not couple draw.io XML handling to Tldraw data structures.
+- Keep the persistence choice explicit; do not silently introduce a new database dependency.
+
+## 32. Reach canvas feature parity and harden the two-sided workflow
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/53
+
+### Goal
+
+Ensure the open-source replacement retains the critical interview functionality and remains usable under normal and degraded conditions.
+
+### Acceptance criteria
+
+- [ ] Browser tests verify facilitator and candidate can draw, add text, create/select/move/delete a shape, and observe the shared result.
+- [ ] Browser tests verify undo/redo, zoom/pan, refresh/rejoin, temporary canvas-sync interruption, and session finish behavior.
+- [ ] The UI shows explicit connecting, connected, saving/saved, reconnecting, disconnected, and ended states.
+- [ ] Canvas keyboard and pointer interactions do not trigger page scrolling, accidental session actions, or focus traps.
+- [ ] The editor works at the supported desktop viewport and has a documented behavior for smaller viewports.
+- [ ] Test diagnostics identify editor, WebSocket, save, and authorization failures without recording credentials or document contents.
+
+### Constraints
+
+- Depend on tasks 30 and 31.
+- Read the project testing and design guidance before adding or changing tests.
+- Keep the same candidate/facilitator permissions as the existing workflow.
+
+## 33. Remove Tldraw, document the self-hosted canvas, and switch the default path
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/54
+
+### Goal
+
+Complete the migration so the project ships with the self-hosted open-source canvas as its default and no longer carries the Tldraw SDK licensing or runtime dependency.
+
+### Acceptance criteria
+
+- [x] Remove Tldraw packages, imports, styles, dead adapters, and unused synchronization code from the frontend and lockfiles.
+- [x] Update Docker Compose, environment examples, README, architecture/spec documents, and CI to describe the self-hosted XML canvas service and its local startup/test commands.
+- [x] Add an open-source attribution/license manifest covering the canvas decision and all newly bundled editor dependencies.
+- [x] The full backend, frontend, canvas-sync, and browser test suites pass with the replacement as the default path.
+- [x] A clean project setup can start the editor and application without network access to the hosted draw.io editor or other third-party canvas service.
+- [x] The final migration issue links the proof-of-concept decision, feature-parity evidence, and known limitations.
+
+### Constraints
+
+- Depend on tasks 29 through 32.
+- Do not delete the existing implementation until replacement acceptance criteria are met.
+- Keep the existing backend session, invitation, evaluation, and authorization contracts stable unless a migration issue documents a required change.
+
+## Authentication hardening backlog
+
+These tasks investigate and, if approved, add Google Identity Services/OIDC authentication and reCAPTCHA v3 risk signals without weakening the existing role and session boundaries. Google authentication identifies an account; reCAPTCHA is an abuse/risk signal and is not a replacement for password, session, authorization, or invite controls.
+
+## 34. Define the account, role, and authentication security model
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/55
+
+### Goal
+
+Decide how administrator signup/login, Google authentication, candidate invite access, account linking, and reCAPTCHA risk decisions fit the current MVP before changing the auth contract.
+
+### Acceptance criteria
+
+- [ ] Document whether public signup is allowed, administrator-only, invitation-only, or disabled for the MVP; candidate access remains scoped to an interview invite unless explicitly changed.
+- [ ] Define supported login methods, account states, role assignment rules, account-linking rules, logout/session revocation behavior, and recovery path.
+- [ ] Define the threat model for credential stuffing, automated signup, account takeover, replayed Google ID tokens, replayed reCAPTCHA tokens, CSRF, open redirects, and cross-session access.
+- [ ] Decide whether to use Google Identity Services credential/ID-token flow or the OAuth 2.0 authorization-code server flow, with rationale and redirect/CSRF requirements.
+- [ ] Define reCAPTCHA actions, hostname/origin policy, score bands, rate-limit interaction, fail-open/closed behavior, privacy/consent requirements, and a non-reCAPTCHA local-test mode.
+- [ ] Record the decision in `docs/authentication.md` and update `docs/spec.md` and `openapi.yaml` boundaries without implementing the new flow.
+
+### Constraints
+
+- Depend on tasks 5, 9, 15, and 20.
+- Do not accept an email address or Google profile field as proof of identity without verified credentials.
+- Keep secrets server-side and candidate invite authorization separate from administrator identity.
+
+## 35. Add durable federated identities and secure application sessions
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/56
+
+### Goal
+
+Create the persistence and backend session foundation needed to support Google-authenticated users without breaking existing administrators or candidate invite credentials.
+
+### Acceptance criteria
+
+- [ ] Add migrations/models for a stable application user, external identity provider, verified provider subject (`sub`), normalized email metadata, role/status, and timestamps without storing Google access tokens unless required by a future feature.
+- [ ] Use the provider subject as the Google identity key; prevent unsafe account linking by email alone.
+- [ ] Implement server-managed, revocable sessions with secure cookie attributes or a documented equivalent, rotation/expiry, logout, and CSRF protection for cookie-authenticated state changes.
+- [ ] Preserve candidate invite tokens as short-lived, session-scoped credentials with no access to admin resources.
+- [ ] Migrate or explicitly retire the current development admin login path with a documented compatibility strategy.
+- [ ] Add tests for identity uniqueness, role isolation, session expiry/revocation, account-linking denial, and cross-session authorization.
+
+### Constraints
+
+- Depend on task 34.
+- Do not store raw OAuth authorization codes, reCAPTCHA secrets, or long-lived provider access tokens in application data.
+- Do not add a new persistence dependency without approval.
+
+## 36. Implement Google Identity Services login and approved signup flow
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/57
+
+### Goal
+
+Allow an approved user population to sign up/sign in with Google while the backend remains authoritative for token verification, account creation, role assignment, and application sessions.
+
+### Acceptance criteria
+
+- [ ] Configure development and production Google OAuth client IDs with explicit allowed origins and redirect URIs; keep client secrets out of the frontend and repository.
+- [ ] Add frontend Google sign-in/sign-up entry points using the approved Google Identity Services flow and accessible loading, denial, popup/redirect failure, and retry states.
+- [ ] Send the Google credential or authorization result to the backend over HTTPS and verify signature, issuer, audience, expiry, and the stable `sub` claim before creating or loading an account.
+- [ ] Enforce the account/role policy from task 34, including any allowed Workspace domain restriction and administrator approval process.
+- [ ] Prevent duplicate accounts and unsafe email-based account takeover; require explicit authenticated linking for additional login methods.
+- [ ] Return only the application session result needed by the frontend; never expose Google tokens to logs, URLs, or unrelated APIs.
+- [ ] Add backend and frontend tests using deterministic provider fixtures/mocks, plus a documented manual configuration check for real Google credentials.
+
+### Constraints
+
+- Depend on tasks 34 and 35.
+- Use Google Identity Services/OIDC verification guidance; do not trust client-supplied Google user IDs or profile fields.
+- Preserve the invite-based candidate path unless the approved product decision explicitly expands it.
+
+## 37. Add reCAPTCHA v3 risk assessment to signup, login, and invite redemption
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/59
+
+### Goal
+
+Use reCAPTCHA v3 as a server-verified, action-specific abuse signal for sensitive unauthenticated flows without making it the sole authentication mechanism.
+
+### Acceptance criteria
+
+- [ ] Configure separate site keys/secrets or documented key scopes for local/test/staging/production; never expose the secret key to the frontend.
+- [ ] Execute named actions such as `signup`, `login`, and `invite_redeem` immediately before the protected request and send the short-lived token to the backend.
+- [ ] Verify every token server-side and require success, expected action, configured hostname, acceptable freshness, and a configurable score policy; reject duplicate/expired/malformed tokens safely.
+- [ ] Implement configurable response bands: allow, rate-limit or require step-up/secondary verification, and deny; do not hard-code an unvalidated universal threshold.
+- [ ] Combine scores with existing per-IP/account/device rate limits and generic errors that do not reveal account existence.
+- [ ] Define behavior when Google reCAPTCHA is unavailable, over quota, blocked by privacy tooling, or disabled in local tests; production protection must not be silently bypassed.
+- [ ] Add tests for valid/mismatched action, wrong hostname, low score, duplicate token, provider timeout, provider outage, and local mock mode.
+
+### Constraints
+
+- Depend on tasks 34 and 36.
+- Keep the reCAPTCHA secret and verification response out of logs and client responses.
+- Document Google reCAPTCHA data-processing, consent, CSP, and privacy implications before production enablement.
+
+## 38. Harden authentication UX, browser policy, and operational configuration
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/58
+
+### Goal
+
+Make the combined Google/reCAPTCHA authentication flow safe, diagnosable, testable, and deployable across local, staging, and production environments.
+
+### Acceptance criteria
+
+- [ ] Update CORS, CSP, frame/ancestor, cookie, redirect, and Google script/origin configuration for the selected GIS and reCAPTCHA integrations.
+- [ ] Add frontend states for provider loading, consent/blocked scripts, low-risk step-up, authentication denial, rate limiting, and retry without leaking sensitive details.
+- [ ] Add structured, token-safe audit events for signup, login, Google verification result, reCAPTCHA decision band, account linking, logout, and session revocation.
+- [ ] Add environment examples and a deployment checklist for client IDs, secrets, allowed origins, redirect URIs, site-key domains, score thresholds, privacy disclosures, and key rotation.
+- [ ] Provide deterministic test doubles for CI and a separate manual smoke test with real provider configuration; CI must not require production Google or reCAPTCHA secrets.
+- [ ] Verify the existing administrator, candidate invite, live canvas, evaluation privacy, logout, and cross-session tests still pass.
+
+### Constraints
+
+- Depend on tasks 35 through 37.
+- Do not log raw Google credentials, reCAPTCHA tokens, invite tokens, passwords, or private evaluation data.
+- Do not make external provider availability an unbounded dependency for local development or automated tests.
+
+## 39. Render the collaborative canvas document visibly
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/60
+
+### Goal
+
+Replace the blank XML-snapshot experience with a real, visible drawing surface whose editor model and persisted document format are explicitly converted and kept compatible across participants.
+
+### Acceptance criteria
+
+- [ ] The live interview workspace opens with a visibly usable drawing surface rather than only a status/XML notification.
+- [ ] The initial persisted document is converted into renderable editor elements; raw `mxCell` XML nodes are not inserted directly into an SVG renderer.
+- [ ] Freehand, text, rectangle, connector, selection, move, delete, undo/redo, zoom, and reload visibly affect the canvas.
+- [ ] Edits serialize into the supported room document format and survive save, refresh, reconnect, and canvas-sync restart.
+- [ ] Two authorized participants see the same rendered initial document and subsequent edits.
+- [ ] Empty, malformed, unsupported, and oversized documents produce recoverable user-facing errors without breaking interview lifecycle state.
+- [ ] The canvas viewport remains visible and bounded within the live workspace; toolbar and status controls do not replace it.
+- [ ] Browser/component regression coverage asserts rendered shapes and exercises an edit/save/reload path, not just iframe presence, status text, or XML strings.
+- [ ] Documentation identifies the canonical editor model, conversion rules, and compatibility limitations.
+
+### Constraints
+
+- Depend on tasks 30 through 33.
+- Preserve session authorization, iframe origin/source validation, canvas-sync room authorization, and durable XML persistence contracts.
+- Read the available UI/testing guidance before adding coverage; if the guidance files are absent, document the fallback used for the test design.
+
+## 40. Make the UI responsive and normalize button/link styling across devices
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/61
+
+### Goal
+
+Provide a consistent, accessible responsive UI that works through mobile browsers on iPhone, iPad, Android phones/tablets, and desktop browsers with touch, keyboard, mouse, and stylus input where supported.
+
+### Acceptance criteria
+
+- [ ] Navigation links, action links, primary/secondary buttons, destructive actions, and disabled/loading states have consistent visual treatment and correct semantics.
+- [ ] Keyboard focus indicators are visible and distinct; hover styling is not the only interaction affordance.
+- [ ] Interactive controls meet a documented touch-target minimum and work with mouse, keyboard, touch, and stylus where supported.
+- [ ] The shell, cards, forms, session lists, controls, evaluation forms, and live workspace reflow without horizontal page scrolling at representative phone, tablet, and desktop widths.
+- [ ] The live canvas/iframe, toolbar, session controls, and forms use responsive sizing rather than fixed desktop assumptions in portrait and landscape layouts.
+- [ ] Mobile safe areas, device rotation, virtual keyboards, reduced motion, and text zoom are handled or documented where platform limitations apply.
+- [ ] Text, controls, status/error messages, and focus states meet the project’s documented contrast and accessibility expectations.
+- [ ] Automated coverage checks representative mobile phone, tablet, and desktop viewports for navigation, forms, session controls, canvas containment, overflow, keyboard focus, and touch-sized controls.
+- [ ] A manual device/browser matrix covers iOS Safari, iPadOS Safari, Android Chrome, Android tablet Chrome, and current desktop Chromium/Firefox/WebKit, with known limitations documented.
+- [ ] Design/system documentation and README describe responsive breakpoints, component conventions, and local verification commands.
+
+### Constraints
+
+- Depend on the existing UI surfaces from tasks 12, 14, 16, and 30 through 33; this task is independent of the canvas document-rendering fix in task 39.
+- Preserve authentication, invitation authorization, interview lifecycle, evaluation privacy, and canvas synchronization contracts.
+- Read the available UI/testing guidance before changing UI or adding coverage; if the guidance files are absent, document the fallback used for the test design.
+
+## 41. Restore replacement invite generation for joinable sessions
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/62
+
+### Goal
+
+Allow an administrator to recover a usable candidate session link whenever the session is still joinable and its prior invite is expired, revoked, or already redeemed.
+
+### Acceptance criteria
+
+- [ ] The session detail page clearly distinguishes active, expired, revoked, redeemed, and absent invite states.
+- [ ] A scheduled, active, or expired-pending session exposes a Generate or Regenerate action whenever it is not completed, including when the previous invite is expired, revoked, or redeemed.
+- [ ] Regeneration invalidates prior usable invites, returns a fresh high-entropy URL with a new expiry, and displays a copyable URL with success/error feedback.
+- [ ] The backend applies the same non-completed-session rule as the UI; completed sessions cannot generate or regenerate invites, and newly generated invites cannot be redeemed for completed sessions.
+- [ ] Invite history remains auditable and does not expose raw tokens in API responses, logs, or persisted data.
+- [ ] Backend, frontend, and browser tests cover expired/revoked/redeemed replacement, completed-session denial, old-token invalidation, and copy feedback.
+
+### Out of scope
+
+- Email or SMS delivery of invitations.
+- Reopening or changing the lifecycle of a completed session.
+
+### Constraints
+
+- Depend on tasks 6, 9, 15, and 27.
+- Preserve invite hashing, session scoping, expiry, rate limiting, and candidate authorization boundaries.
+
+## 42. Make the sessions page the canonical administrator landing page
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/63
+
+### Goal
+
+Remove the redundant administrator dashboard hop so a successful administrator login opens the complete sessions page directly, with navigation actions presented consistently.
+
+### Acceptance criteria
+
+- [ ] Successful password or Google administrator login navigates directly to `/admin/sessions`.
+- [ ] `/admin` redirects to `/admin/sessions` without rendering a separate dashboard page or an “Open sessions” call-to-action.
+- [ ] The page title and navigation label use “Sessions” and do not imply that the list contains only open sessions; completed sessions remain visibly included.
+- [ ] Header navigation uses the shared button-style treatment for navigational links while retaining link semantics, and action controls remain native buttons with consistent primary, secondary, destructive, disabled, and focus states.
+- [ ] The Interview Canvas brand link, Sessions navigation, logout action, session-detail actions, and evaluation navigation follow the same documented control conventions across desktop and mobile widths.
+- [ ] Component and browser tests verify the post-login route, `/admin` redirect, absence of the redundant dashboard action, and accessible navigation/button semantics.
+
+### Out of scope
+
+- Session search, sorting, and status filtering are handled in task 43 / issue #64.
+- Responsive device-matrix validation remains in task 40 / issue #61.
+
+### Constraints
+
+- Depend on tasks 3, 5, 8, and 40.
+- Do not replace navigational links with non-semantic click-only controls.
+- Preserve protected-route behavior and logout/session revocation.
+
+## 43. Add search, sorting, and lifecycle filters to the sessions page
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/64
+
+### Goal
+
+Make the administrator sessions page useful as the complete session index by supporting fast search, deterministic sorting, and lifecycle filtering, including completed sessions.
+
+### Acceptance criteria
+
+- [ ] The sessions page provides a labeled search field that matches candidate name, candidate email, and session identifier case-insensitively.
+- [ ] The page provides a status filter with an All option and options for scheduled, active, expired-pending-facilitator-action, and completed sessions.
+- [ ] The page provides deterministic sort choices for candidate name A–Z, scheduled date ascending, and scheduled date descending, with a documented default.
+- [ ] Search, filter, and sort can be combined and update the visible result set without losing the current controls or navigation context.
+- [ ] Completed sessions are included when All is selected and can be isolated with the completed filter; the page does not label the full list as open sessions.
+- [ ] Empty and no-match states explain whether there are no sessions or no sessions matching the current criteria, with a way to clear the criteria.
+- [ ] Session rows retain accessible links to details and show candidate, scheduled date, lifecycle status, and relevant duration information in every sort/filter state.
+- [ ] Component tests cover case-insensitive matching, each sort direction, every lifecycle filter, combined criteria, completed sessions, and no-match recovery; browser coverage verifies the controls visibly change results.
+
+### Out of scope
+
+- Pagination, saved views, bulk actions, and server-side full-text search.
+- Changes to session lifecycle transitions, invitation authorization, or evaluation privacy.
+
+### Constraints
+
+- Depend on tasks 6, 8, 21, and 42.
+- Use the existing typed service boundary; do not introduce a new persistence or search dependency.
+- Read the available UI/testing guidance before adding coverage; if absent, document the fallback used.
+
+## 44. Bring the self-hosted canvas to a familiar diagram-editor UX
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/65
+
+### Goal
+
+Make the self-hosted canvas feel like a real collaborative drawing workspace, with familiar tldraw/diagrams.net interaction affordances and a coherent visual hierarchy, while preserving the dependency-free local editor and existing authorization/document protocols.
+
+### Acceptance criteria
+
+- [ ] The product documentation and UI accurately distinguish the dependency-free compatibility editor from upstream draw.io, while documenting the supported feature set and limitations.
+- [ ] The canvas presents a coherent editor shell with grouped tools for selection, hand/pan, freehand, text, shapes, connectors, delete, undo/redo, zoom, reset/fit, and save/reload; each tool has an accessible name, tooltip or equivalent discoverability, and a visible active/disabled state.
+- [ ] Selecting an element visibly shows a selection box and usable manipulation affordances; users can select, move, resize where supported, delete, and edit text without relying on raw XML or browser-default controls.
+- [ ] Pan and zoom work through explicit controls and expected pointer/keyboard gestures without scrolling the surrounding interview page; the viewport, canvas background, document bounds, and selection state remain visually understandable at desktop and mobile-supported sizes.
+- [ ] Shapes, connectors, freehand strokes, and text have consistent visual styling, render with sufficient contrast, and provide feedback for hover, focus, selection, creation, save, conflict, and error states.
+- [ ] The canvas status area is consolidated so users do not see duplicate or contradictory “Edited/Loaded” messages from the host and iframe; connection and persistence states remain understandable without exposing tokens, XML contents, or implementation details.
+- [ ] The facilitator/candidate canvas experience remains functionally equivalent and session controls remain visually separate from the editor toolbar; role permissions and lifecycle behavior do not change.
+- [ ] Browser coverage exercises tool selection, active states, selection/manipulation, pan/zoom, keyboard shortcuts, text editing, save/reload feedback, and degraded/reconnect states at supported desktop and mobile viewports.
+- [ ] Design documentation records the canvas interaction model, supported gestures, keyboard shortcuts, responsive behavior, and known differences from tldraw/upstream draw.io.
+
+### Out of scope
+
+- Replacing the local editor with a hosted `embed.diagrams.net` dependency.
+- Arbitrary draw.io stencil libraries, lossless round-tripping of every upstream style, or shared code editing.
+- Room authorization, XML persistence, conflict policy, and lifecycle rules handled by tasks 30–33 and issue #52.
+
+### Constraints
+
+- Depend on tasks 30 through 33, 39, and 40; coordinate with issue #53 rather than duplicating its feature-parity coverage.
+- Preserve exact iframe origin/source validation, room authorization, revision checks, XML size limits, and token-safe diagnostics.
+- Do not add a large editor dependency or vendor upstream assets without documenting licensing, notices, and the migration decision.
+
+## 45. Make the root Compose command work for the Interview Canvas project
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/66
+
+### Goal
+
+Provide one unambiguous, working Compose entrypoint for `02_interviews` and make repository-level project boundaries explicit.
+
+### Acceptance criteria
+
+- [ ] `docker compose up --build` from the repository root starts the `02_interviews` stack, or the root README clearly identifies the exact supported project-scoped command and does not present the root command as supported.
+- [ ] The command from `02_interviews/` remains supported.
+- [ ] Compose-relative paths, environment files, named volumes, health checks, and service dependencies work from the supported invocation location.
+- [ ] Root and project READMEs provide copyable setup, start, stop, test, and rebuild commands and identify the project being started.
+- [ ] Verification covers a clean checkout or clean working directory, including the missing-configuration failure mode.
+- [ ] No command requires activating the unrelated `01_todo` virtual environment.
+
+### Out of scope
+
+- Changes to the `01_todo` Django runtime.
+- Production deployment or managed cloud hosting.
+
+## 46. Fix session-detail visual hierarchy and responsive action layout
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/67
+
+### Goal
+
+Make the administrator session-detail page readable and actionable at desktop and mobile widths while preserving authorization and lifecycle behavior.
+
+### Acceptance criteria
+
+- [ ] Session title, lifecycle status, metadata, section headings, and body text use a documented responsive hierarchy.
+- [ ] Primary, secondary, and destructive actions have consistent spacing, grouping, focus, disabled/loading, and touch-target treatment; adjacent buttons do not appear accidentally merged.
+- [ ] Session actions remain visually separate from invitation and evaluation sections.
+- [ ] The layout reflows without horizontal scrolling at representative phone, tablet, and desktop widths, including long names and lifecycle labels.
+- [ ] Loading, empty, and error states are meaningful and do not conceal unavailable data or actions.
+- [ ] Component and browser visual/geometry coverage includes an expired-pending session and narrow viewport.
+- [ ] UI documentation records type scale, spacing, action-group conventions, and breakpoints.
+
+### Out of scope
+
+- Authentication, invite-token security, lifecycle rules, evaluation privacy, or canvas replacement.
+
+## 47. Surface actionable invitation recovery on expired session details
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/68
+
+### Goal
+
+Make every non-completed session detail view explicitly communicate invitation state and expose the appropriate recovery action.
+
+### Acceptance criteria
+
+- [ ] Scheduled, active, and expired-pending details visibly show no invite, active, expired, redeemed, or revoked state.
+- [ ] An expired-pending session with no usable invite offers Generate invite; one with an unusable invite offers Regenerate invite.
+- [ ] Generation/regeneration shows success/error feedback and a copyable candidate URL.
+- [ ] Completed sessions state that invitation recovery is unavailable and do not show misleading generation controls.
+- [ ] Loading, unavailable/error, and no-data states are tested; the invitation section never renders as an unexplained blank area.
+- [ ] Component and browser tests cover the screenshot state, link feedback, completed denial, and narrow viewport rendering.
+- [ ] Raw invite tokens are not exposed in diagnostics or unrelated page content.
+
+### Dependency
+
+- Depends on issue #62 for the backend non-completed-session invite rule and token invalidation behavior.
