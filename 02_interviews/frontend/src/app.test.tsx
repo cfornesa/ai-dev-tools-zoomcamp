@@ -8,11 +8,12 @@ import {canEndSession,expiryMessage,remainingMinutes} from "./features/interview
 import {SessionDetail} from "./features/admin/SessionDetail";
 import {SessionDashboard} from "./features/admin/SessionDashboard";
 import {LiveWorkspace} from "./features/interview/LiveWorkspace";
-import {Invite} from "./main";
+import {App,Invite} from "./main";
 
 import {SessionEvaluation} from "./features/evaluation/SessionEvaluation";
 
 const Login=()=> <h1>Administrator login</h1>;
+describe("administrator landing page",()=>{afterEach(()=>{vi.restoreAllMocks();localStorage.clear()});it("redirects /admin to the complete Sessions page without the dashboard action",async()=>{localStorage.setItem("admin_token","admin-token");vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,json:async()=>[]}));render(<MemoryRouter initialEntries={["/admin"]}><App/></MemoryRouter>);expect(await screen.findByRole("heading",{name:"Sessions"})).toBeVisible();expect(screen.queryByText("Open sessions")).not.toBeInTheDocument();expect(screen.getByRole("link",{name:"Sessions"})).toHaveAttribute("href","/admin/sessions")})});
 describe("route boundaries",()=>{it("renders the login boundary for unauthenticated users",()=>{render(<MemoryRouter><Login/></MemoryRouter>);expect(screen.getByRole("heading",{name:"Administrator login"})).toBeVisible();});});
 describe("authorization states",()=>{it("shows pending authorization",()=>{render(<MemoryRouter><RouteGate authorized={false} pending/></MemoryRouter>);expect(screen.getByText("Authorizing session…")).toBeVisible();});it("redirects denied access to login",()=>{render(<MemoryRouter initialEntries={["/admin"]}><RouteGate authorized={false}><p>secret</p></RouteGate></MemoryRouter>);expect(screen.queryByText("secret")).not.toBeInTheDocument();});});
 describe("interview and evaluation rules",()=>{it("requires every score and rationale",()=>{const categories=[{name:"communication"},{name:"technical"}];expect(hasCompleteScores(categories,{communication:{rating:4,rationale:"clear"}})).toBe(false);expect(hasCompleteScores(categories,{communication:{rating:4,rationale:"clear"},technical:{rating:3,rationale:"evidence"}})).toBe(true)});it("keeps facilitator controls role-scoped and timer server-based",()=>{const now=Date.parse("2026-01-01T00:00:00Z");expect(canEndSession("candidate","active")).toBe(false);expect(canEndSession("admin","active")).toBe(true);expect(expiryMessage("candidate")).toContain("Waiting");expect(remainingMinutes("2026-01-01T00:14:01Z",now)).toBe(15)})});
