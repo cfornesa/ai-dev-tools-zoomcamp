@@ -12,6 +12,21 @@ These groomed issues were created from the facilitator/candidate screenshot and
 the follow-up interaction report. They are scoped to `02_interviews`; do not
 work on them in parallel with another project.
 
+### PR follow-up: Circle E2E regression
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/86
+
+The PR browser suite does not observe the ellipse created by the narrow-layout
+Circle drag. Fix the pointer lifecycle and add focused regression coverage.
+
+### PR follow-up: Canvas POC E2E contract drift
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/87
+
+The disposable POC browser test still expects the removed Select/Move split and
+uses incomplete synthetic pointer events. Update the test to the current editor
+contract and verify the POC suite in CI.
+
 ### Canvas text editing and resizing
 
 GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/81
