@@ -80,10 +80,12 @@ round-tripped.
 
 The compatibility editor groups tools into canvas, edit, viewport, and
 persistence controls. Select shows a visible selection box; Move drags the
-selected element, Delete and the Delete/Backspace keys remove it, and double
-clicking text opens a browser edit prompt. Hand/Pan drags the bounded
-viewport, while Zoom controls, Ctrl+wheel, and Reset/Fit change the document
-view without scrolling the interview page. Every tool exposes an accessible
-name, title, and active state. The editor remains intentionally smaller than
-upstream draw.io: resizing handles, arbitrary stencil libraries, rich text,
-and lossless style round-tripping are not supported.
+selected element, Delete and the Delete/Backspace keys remove it, and text
+creation or double-click opens an accessible inline editor with Apply, Cancel,
+and Escape paths. Shift+Arrow resizes rectangles with minimum dimensions and
+adjusts text font size. Hand/Pan drags the bounded viewport, while Zoom
+controls, Ctrl+wheel, and Reset/Fit change the document view without scrolling
+the interview page. Every tool exposes an accessible name, title, and active
+state. The editor remains intentionally smaller than upstream draw.io:
+arbitrary stencil libraries, rich text, and lossless style round-tripping are
+not supported.

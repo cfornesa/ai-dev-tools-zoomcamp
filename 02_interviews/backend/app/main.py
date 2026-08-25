@@ -98,7 +98,7 @@ def invite_session_joinable(item):
 def create_invite(item, user, db):
     raw=random_token(); expiry=datetime.now(timezone.utc)+timedelta(minutes=settings.invite_expiry_minutes)
     db.add(SessionInvite(session_id=item.id,token_hash=digest(raw),expires_at=expiry)); audit(db,"invite.created",user,item.id); db.commit()
-    return {"url":f"http://localhost:5173/invite/{raw}","expires_at":expiry}
+    return {"url":f"{settings.frontend_url.rstrip('/')}/invite/{raw}","expires_at":expiry}
 @app.get("/health")
 def health(db:Session=Depends(get_db)):
     try: db.execute(text("SELECT 1")); return {"ok":True}

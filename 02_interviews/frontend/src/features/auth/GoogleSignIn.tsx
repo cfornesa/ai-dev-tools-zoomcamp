@@ -1,0 +1,13 @@
+import {useEffect,useRef,useState} from "react";
+import {service,ServiceError} from "../../lib/service";
+
+declare global { interface Window { google?: { accounts:{id:{initialize:(options:{client_id:string;callback:(response:{credential:string})=>void})=>void;renderButton:(element:HTMLElement,options:Record<string,unknown>)=>void;cancel:()=>void}}}}}
+type Props={onSuccess:(user:{id:string;email:string;role:string})=>void};
+
+export function GoogleSignIn({onSuccess}:Props){
+  const mount=useRef<HTMLDivElement>(null);const [state,setState]=useState<"loading"|"ready"|"blocked"|"error">("loading");const [message,setMessage]=useState("");const clientId=import.meta.env.VITE_GOOGLE_CLIENT_ID||"";
+  const authenticate=async(credential:string)=>{try{const result=await service.googleLogin(credential);onSuccess(result.user);setState("ready")}catch(error){const failure=error as ServiceError;setState(failure.status===429?"blocked":"error");setMessage(failure.message)}};
+  useEffect(()=>{if(service.mode==="mock"){setState("ready");return}if(!clientId){setState("blocked");setMessage("Google sign-in is not configured for this environment.");return}let script=document.querySelector<HTMLScriptElement>('script[data-google-identity]');const ready=()=>{if(!window.google||!mount.current){setState("error");setMessage("Google sign-in could not load.");return}window.google.accounts.id.initialize({client_id:clientId,callback:response=>void authenticate(response.credential)});mount.current.replaceChildren();window.google.accounts.id.renderButton(mount.current,{theme:"outline",size:"large",text:"signin_with",width:260});setState("ready")};if(!script){script=document.createElement("script");script.src="https://accounts.google.com/gsi/client";script.async=true;script.defer=true;script.dataset.googleIdentity="true";script.onload=ready;script.onerror=()=>{setState("error");setMessage("Google sign-in is unavailable. Try again or use administrator credentials.")};document.head.appendChild(script)}else if(window.google)ready();else script.addEventListener("load",ready,{once:true});return()=>{script?.removeEventListener("load",ready)}},[clientId]);
+  if(service.mode==="mock")return <button type="button" onClick={()=>void authenticate("mock:mock-sub:mock@example.test:verified")}>Continue with Google (mock)</button>;
+  return <section aria-label="Google sign-in"><div ref={mount}/>{state==="loading"&&<p role="status">Loading Google sign-in…</p>}{message&&<p className={state==="error"?"error":"status"} role="alert">{message}</p>}{(state==="error"||state==="blocked")&&clientId&&<button type="button" className="secondary" onClick={()=>window.location.reload()}>Retry Google sign-in</button>}</section>;
+}

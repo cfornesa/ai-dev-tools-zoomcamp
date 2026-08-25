@@ -19,6 +19,7 @@ function statusLabel(state: string) {
 
 export function SessionDashboard() {
   const [items, setItems] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,8 +31,11 @@ export function SessionDashboard() {
   const [sort, setSort] = useState<Sort>("scheduled-asc");
 
   async function load() {
+    setLoading(true);
+    setError("");
     try { setItems(await service.listSessions()); }
     catch (cause) { setError(String(cause)); }
+    finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
 
@@ -70,8 +74,9 @@ export function SessionDashboard() {
       <label>Status<select aria-label="Status filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All</option>{statuses.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}</select></label>
       <label>Sort<select aria-label="Sort sessions" value={sort} onChange={event => setSort(event.target.value as Sort)}><option value="scheduled-asc">Scheduled date ascending</option><option value="scheduled-desc">Scheduled date descending</option><option value="candidate-asc">Candidate name A–Z</option></select></label>
     </section>
-    {error && <p className="error">{error}</p>}
-    {items.length === 0 ? <p className="status">No sessions yet.</p> : visible.length === 0 ? <p className="status">No sessions match the current criteria. <button type="button" className="secondary" onClick={clearCriteria}>Clear criteria</button></p> : <ul className="sessions">{visible.map(session => <li key={session.id}><Link to={`/admin/sessions/${session.id}`}>{session.candidate_name}</Link><span>{new Date(session.scheduled_at).toLocaleString()} · {statusLabel(session.state)} · {session.duration_minutes} min · {session.id}</span></li>)}</ul>}
+    {loading && <p className="status" role="status">Loading sessions…</p>}
+    {!loading && error && <div role="alert" className="error"><p>{error}</p><button type="button" onClick={() => void load()}>Retry</button></div>}
+    {!loading && !error && items.length === 0 ? <p className="status">No sessions yet.</p> : !loading && !error && visible.length === 0 ? <p className="status">No sessions match the current criteria. <button type="button" className="secondary" onClick={clearCriteria}>Clear criteria</button></p> : !loading && !error && <ul className="sessions">{visible.map(session => <li key={session.id}><div className="session-copy"><strong>{session.candidate_name}</strong><span>{new Date(session.scheduled_at).toLocaleString()} · {statusLabel(session.state)} · {session.duration_minutes} min · {session.id}</span></div><Link className="button secondary" to={`/admin/sessions/${session.id}`}>View Session</Link></li>)}</ul>}
     {items.length > 0 && hasCriteria && visible.length > 0 && <button type="button" className="secondary" onClick={clearCriteria}>Clear criteria</button>}
   </main>;
 }

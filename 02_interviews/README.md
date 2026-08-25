@@ -3,8 +3,9 @@
 ## Local development
 
 All commands in this section are scoped to the `02_interviews` Interview
-Canvas project. From the repository root, run `cd 02_interviews` first; the
-repository root intentionally has no supported `docker compose` invocation.
+Canvas project. The same stack can also be started from the repository root;
+the root `compose.yaml` includes this file. Use the project directory when
+running the Makefile and service-local tests.
 
 From this directory, copy `.env.example` to `.env`, review the non-secret local
 defaults, and start the isolated services:
@@ -23,7 +24,7 @@ The backend is available at `http://localhost:8000/docs`, the frontend at `http:
 
 If local port 5432 is already occupied, set `POSTGRES_PORT=55432` in `.env`; the container remains on PostgreSQL's internal port 5432. Similarly, use `CANVAS_SYNC_PORT` or `CANVAS_EDITOR_PORT` for host conflicts and update the matching browser-facing `VITE_CANVAS_SYNC_URL` or `VITE_DRAWIO_EDITOR_URL` value.
 
-The Makefile is the primary command interface:
+The Makefile is the primary project-local command interface:
 
 ```bash
 make help

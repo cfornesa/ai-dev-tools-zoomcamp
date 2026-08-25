@@ -18,12 +18,15 @@ services:
     environment:
       DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-}
       DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-}
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-http://localhost:5173}
     env_file:
       - path: .env.example
         required: true
       - path: .env
         required: false
-    ports: ["8000:8000"]
+    ports: ["${BACKEND_PORT:-8000}:8000"]
     depends_on:
       postgres: {condition: service_healthy}
     healthcheck:
@@ -35,16 +38,47 @@ services:
   frontend:
     build: ./frontend
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_PORT:-8000}}
       VITE_CANVAS_SYNC_URL: ${VITE_CANVAS_SYNC_URL:-http://localhost:8787}
-    ports: ["5173:5173"]
-    depends_on: {backend: {condition: service_healthy}}
+      VITE_CANVAS_MODE: ${VITE_CANVAS_MODE:-drawio}
+      VITE_DRAWIO_EDITOR_URL: ${VITE_DRAWIO_EDITOR_URL:-http://localhost:8090/editor.html}
+    ports: ["${FRONTEND_PORT:-5173}:5173"]
+    depends_on:
+      backend: {condition: service_healthy}
+      canvas-sync: {condition: service_healthy}
+      canvas-editor: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   canvas-sync:
     build: ./frontend/canvas-sync
     environment:
+      PORT: 8787
       CANVAS_TOKEN_SECRET: ${CANVAS_TOKEN_SECRET:-change-me-for-local-development}
-    ports: ["8787:8787"]
+      DRAWIO_STATE_DIR: ${DRAWIO_STATE_DIR:-/var/lib/canvas-sync}
+    volumes: [interviews-canvas-state:/var/lib/canvas-sync]
+    ports: ["${CANVAS_SYNC_PORT:-8787}:8787"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  canvas-editor:
+    image: python:3.13-alpine
+    working_dir: /app
+    command: ["python", "server.py"]
+    volumes: ["./canvas-poc:/app:ro"]
+    ports: ["${CANVAS_EDITOR_PORT:-8090}:8090"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/host.html')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   interviews-postgres:
+  interviews-canvas-state:

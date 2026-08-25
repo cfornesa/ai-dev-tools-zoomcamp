@@ -30,18 +30,25 @@ export function SessionDetail() {
   const [facilitator, setFacilitator] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [duration, setDuration] = useState("45");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
-    const next = await service.getSession(sessionId!, "admin");
-    setItem(next); setCandidateName(next.candidate_name); setCandidateEmail(next.candidate_email || "");
-    setFacilitator(next.facilitator_id || ""); setScheduledAt(new Date(next.scheduled_at).toISOString().slice(0, 16)); setDuration(String(next.duration_minutes));
-    if (next.state === "completed") { setInviteState(undefined); setInviteLoadState("ready"); return; }
-    setInviteLoadState("loading");
-    try { setInviteState((await service.listInvites(sessionId!))[0]); setInviteLoadState("ready"); }
-    catch (error) { setInviteState(undefined); setInviteLoadState("unavailable"); setMessage(`Invitation status unavailable: ${String(error)}`); }
+    setLoading(true); setError("");
+    try {
+      const next = await service.getSession(sessionId!, "admin");
+      setItem(next); setCandidateName(next.candidate_name); setCandidateEmail(next.candidate_email || "");
+      setFacilitator(next.facilitator_id || ""); setScheduledAt(new Date(next.scheduled_at).toISOString().slice(0, 16)); setDuration(String(next.duration_minutes));
+      if (next.state === "completed") { setInviteState(undefined); setInviteLoadState("ready"); return; }
+      setInviteLoadState("loading");
+      try { setInviteState((await service.listInvites(sessionId!))[0]); setInviteLoadState("ready"); }
+      catch (cause) { setInviteState(undefined); setInviteLoadState("unavailable"); setMessage(`Invitation status unavailable: ${String(cause)}`); }
+    } catch (cause) { setError(String(cause)); }
+    finally { setLoading(false); }
   }
-  useEffect(() => { load().catch(error => setMessage(String(error))); }, [sessionId]);
-  if (!item) return <main className="card"><p>{message || "Loading session details…"}</p></main>;
+  useEffect(() => { void load(); }, [sessionId]);
+  if (loading) return <main className="card"><p className="status" role="status">Loading session details…</p></main>;
+  if (error || !item) return <main className="card"><div role="alert" className="error"><p>{error || "Session details are unavailable."}</p><button type="button" onClick={() => void load()}>Retry</button></div></main>;
 
   async function run(action: string, callback: () => Promise<void>) {
     setBusy(action); try { await callback(); } catch (error) { setMessage(String(error)); } finally { setBusy(""); }

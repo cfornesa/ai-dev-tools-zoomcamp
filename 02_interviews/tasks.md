@@ -6,6 +6,51 @@ the task numbers in this document until the tasks are created as GitHub issues.
 
 # Interview Canvas MVP task backlog
 
+## Newly reported gaps (2026-08-25)
+
+These groomed issues were created from the facilitator/candidate screenshot and
+the follow-up interaction report. They are scoped to `02_interviews`; do not
+work on them in parallel with another project.
+
+### Canvas text editing and resizing
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/81
+
+Restore visibly effective text font-size changes and provide an obvious,
+bounded text-resize interaction with serialized and collaborative round-trip
+coverage.
+
+### Unified canvas selection and movement
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/84
+
+Define one predictable select/drag-move interaction, including movement of
+freehand paths, while preserving Hand/Pan and undo/redo behavior.
+
+### Square and circle primitives
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/80
+
+Add square and circle/ellipse tools to the canonical editor model with
+serialization, movement, resizing, and collaboration coverage. This depends
+on the unified movement interaction in issue #84.
+
+### Bidirectional live-workspace canvas synchronization
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/82
+
+Restore real-time convergence between interviewer and interviewee embedded
+editors, including both directions, reconnect/restart recovery, conflicts, and
+cross-session denial. Shape additions remain separately scoped to issue #80.
+
+### Facilitator extension propagation
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/83
+
+Make an extension authoritative and immediately visible to both participants
+through REST, application WebSocket events, and polling fallback, including
+stale-event protection and refresh coverage.
+
 ## 1. Establish the local development stack
 GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/22
 
@@ -1284,3 +1329,198 @@ messages.
 - Keep FastAPI/canvas-sync authoritative for session access and room state; do not move lifecycle or invitation data into the editor.
 - Preserve the existing XML transport contract, room identifiers, revision checks, and bounded persistence.
 - Do not introduce shared code editing, code execution, or a new database dependency.
+
+## 53. Restore the administrator Sessions workflow end to end
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/74
+
+### Goal
+
+Make the administrator Sessions experience reliably usable from the session
+list through session detail and into the live workspace.
+
+### Acceptance criteria
+
+- [ ] An authenticated administrator can open `/admin/sessions`, retrieve the session collection, and see loading, empty, API-error, and populated states with actionable feedback.
+- [ ] Each populated session can be opened from the list, and its identifier is preserved through `/admin/sessions/:sessionId`; missing, unauthorized, and unavailable detail responses show clear terminal or retryable states.
+- [ ] The detail page loads session metadata and exposes the appropriate next action for scheduled, active, expired-pending, and completed sessions.
+- [ ] An eligible active session opens the live workspace through the real backend authorization and canvas-token flow; failures distinguish session access, session events, and canvas availability without exposing credentials or tokens.
+- [ ] List, detail, and live-workspace requests use the same authenticated service contract and never leave an indefinite loading state.
+- [ ] A Compose-backed Playwright scenario covers administrator login → Sessions list → selected session detail → Open live workspace, including a diagnostic assertion for the reported failure.
+- [ ] Component/API tests cover list loading/error/empty states, detail navigation, invalid identifiers, authorization denial, and retry behavior.
+
+### Constraints
+
+- Preserve existing route and authorization boundaries and the typed frontend service layer.
+- Do not add a new persistence or UI framework dependency.
+- Do not change the unrelated `01_todo` project.
+
+## 54. Add an explicit View Session action to each session row
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/75
+
+### Goal
+
+Make the Sessions list scannable and semantically clear by showing the
+interviewee name as session data and providing a dedicated `View Session`
+navigation action.
+
+### Acceptance criteria
+
+- [ ] The interviewee name is rendered as non-interactive text, not as the row's only navigation control.
+- [ ] Every session row has a clearly labeled `View Session` link/button targeting `/admin/sessions/:sessionId`.
+- [ ] The control preserves native link semantics, keyboard access, focus visibility, and existing button styling.
+- [ ] The action remains distinct from scheduled time, status, duration, email, and identifier metadata.
+- [ ] Long names/statuses and narrow phone/tablet widths do not obscure the `View Session` action.
+- [ ] Component and browser tests assert one correctly scoped action per row, correct destination, accessible name, and responsive visibility.
+- [ ] Existing authorization, filtering, sorting, and detail behavior remain unchanged.
+
+### Constraints
+
+- Keep the existing React Router route.
+- Do not replace the link with a click-only button or introduce a UI framework dependency.
+- Do not modify the unrelated `01_todo` project.
+
+## Canvas defect refinement backlog
+
+The following issues refine the canvas defects reported after the initial
+draw.io-compatible editor and room work. They are intentionally separated so
+input behavior, object editing, persistence, and cross-client delivery can be
+implemented and verified independently.
+
+## 55. Repair canvas pointer tools and document input semantics
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/76
+
+### Goal
+
+Make select, freehand, rectangle, and connector tools respond predictably to
+mouse, touch, and stylus input inside the visible canvas.
+
+### Evidence and suspected causes
+
+- The current `select` path creates a rectangle when the pointer lands on empty
+  SVG space instead of clearing/selecting nothing.
+- Freehand replaces its path with a two-point line on every pointer move rather
+  than accumulating the pointer path.
+- Drawing does not use pointer capture and does not normalize negative-width or
+  negative-height drags, so releasing outside the original target or dragging
+  upward/left produces inconsistent geometry.
+- Connector endpoints are derived from the same fragile drawing path, producing
+  lines that can appear anchored at an interface edge or otherwise detached
+  from the pointer gesture.
+
+### Acceptance criteria
+
+- [ ] Select on an empty canvas clears the selection and never creates an object; select on an existing object selects only that object.
+- [ ] Rectangle and connector creation begins at the pointer-down canvas coordinate, follows pointer movement, normalizes either drag direction, and commits one object on pointer-up.
+- [ ] Pointer capture keeps an in-progress gesture active until pointer-up/cancel, including when the pointer leaves the original SVG element; cancellation removes the incomplete object.
+- [ ] Freehand records a bounded sequence of pointer samples and renders a continuous stroke that follows the cursor rather than only a start/end line.
+- [ ] Canvas coordinates remain correct after iframe offsets, scrolling, zoom, and responsive resizing; gestures do not scroll or activate the parent interview page.
+- [ ] Mouse, touch, and stylus use the same pointer-event behavior, with a documented minimum sample/point policy and bounded document size.
+- [ ] Browser tests visibly exercise empty-canvas select, rectangle drag in both directions, connector endpoints, freehand multi-point drawing, pointer cancellation, and narrow viewport behavior.
+
+### Out of scope
+
+- Text formatting and resize handles, covered by task 56.
+- Server persistence and multi-client synchronization, covered by tasks 57 and 58.
+
+### Constraints
+
+- Preserve the canonical SVG-backed document model and iframe origin/source checks.
+- Do not add a large editor dependency or modify the unrelated `01_todo` project.
+
+## 56. Add real text editing and object transform controls
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/77
+
+### Goal
+
+Make text and existing canvas objects editable through direct manipulation rather
+than a one-off browser prompt, including predictable sizing and selection
+feedback.
+
+### Acceptance criteria
+
+- [ ] Text creation opens an accessible inline editor or editor panel with a clear commit/cancel path; browser-native prompts are not required.
+- [ ] A selected text object can have its content changed, font size changed, and edit cancelled without losing the prior value.
+- [ ] Text objects render with their persisted font-size and alignment attributes, and those attributes survive serialization, reload, and conversion from supported incoming documents.
+- [ ] Selected rectangles, text, connectors, and freehand objects show a bounded selection affordance; moving an object does not accidentally create a second object.
+- [ ] Supported objects expose resize handles or an equivalent keyboard/control-based resize operation with minimum dimensions and canvas bounds.
+- [ ] Delete, undo, redo, keyboard navigation, focus, and escape/cancel behavior remain accessible and do not trigger page navigation or scrolling.
+- [ ] Component/browser tests cover text create/edit/resize/font-size, cancel, object move/resize/delete, serialization, and keyboard interaction for both participants.
+
+### Out of scope
+
+- New shape libraries, rich text, connectors with routing/ports, or arbitrary draw.io style fidelity.
+- Cross-client conflict resolution, covered by task 58.
+
+### Constraints
+
+- Keep the editor dependency-free unless a separate approved dependency decision is recorded.
+- Preserve role/lifecycle authorization and the existing XML transport boundary.
+
+## 57. Correct authoritative canvas save, reload, and restart persistence
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/78
+
+### Goal
+
+Make explicit Save, Reload, reconnect, and canvas-sync restart reliably use the
+authoritative room revision and restore the latest accepted document.
+
+### Evidence and suspected cause
+
+The editor currently increments a local revision for every edit and sends that
+value as the save base revision. The room revision is independent and therefore
+rejects normal saves as stale. Reload also depends on a previously received
+snapshot and has no explicit success/error handshake for an unavailable room.
+
+### Acceptance criteria
+
+- [ ] Every save sends the last server-issued revision as its base revision; local undo/history counters cannot make a valid save appear stale.
+- [ ] A successful save increments the authoritative revision exactly once, persists the document, broadcasts the accepted snapshot, and shows a saved state in the host.
+- [ ] A stale save produces a conflict/reloaded state, does not overwrite the authoritative document, and leaves the user with an explicit retry/reapply path.
+- [ ] Reload requests the current room snapshot even after editor initialization, and the latest accepted document is visibly restored after refresh, WebSocket reconnect, and canvas-sync restart.
+- [ ] Empty, malformed, unsupported, and oversized documents fail with a recoverable inline message while session controls remain usable; raw XML, tokens, and stack traces are not displayed.
+- [ ] Save/reload behavior is safe under rapid repeated clicks and disconnected sockets; requests are serialized or rejected without silent data loss.
+- [ ] Unit/integration tests cover revision alignment, accepted save, conflict, reload, persistence across process recreation, size limits, disconnect/reconnect, and token-safe errors.
+
+### Out of scope
+
+- New drawing tools or text/shape manipulation, covered by tasks 55 and 56.
+- Multi-client browser convergence and participant-specific reconnect UX, covered by task 58.
+
+### Constraints
+
+- Keep FastAPI/canvas-sync authoritative for room state and preserve the existing
+  session-scoped token contract.
+- Do not introduce a new database dependency.
+
+## 58. Prove live canvas convergence across participants and reconnects
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/79
+
+### Goal
+
+Ensure an authorized interviewee and interviewer see the same canvas edits in
+near real time and recover deterministically after refresh or temporary service
+loss.
+
+### Acceptance criteria
+
+- [ ] Two authorized clients in the same session receive the same initial document and each accepted edit from the other client without requiring a manual page reload.
+- [ ] A client never receives or renders updates from another session, even when session IDs, room URLs, or stale messages are altered.
+- [ ] Echoed own updates do not duplicate objects, reset selection, or move the viewport unexpectedly; remote updates preserve the local editor's usable state where conflict policy permits.
+- [ ] Concurrent edits follow the documented revision/conflict policy, visibly report conflicts, and never silently replace a newer authoritative document.
+- [ ] Refreshing either participant restores the latest accepted document; restarting canvas-sync retains the snapshot and both clients can reconnect to it.
+- [ ] Temporary WebSocket/editor unavailability shows connecting, reconnecting, disconnected, recovered, conflict, and ended states without an indefinite spinner or false saved state.
+- [ ] Compose-backed browser tests perform edits from both participant contexts, assert visible convergence, exercise refresh and canvas-sync restart, and verify cross-session denial and bounded token-safe diagnostics.
+- [ ] Documentation identifies the authoritative owner, ordering/conflict policy, reconnect behavior, and known limitations.
+
+### Dependencies
+
+- Depends on tasks 55–57.
+
+### Out of scope
+
+- Shared code editing, code execution, and production-scale collaboration.
+
+### Constraints
+
+- Reuse the existing session authorization and canvas room boundaries.
+- Do not add a new persistence or UI framework dependency.

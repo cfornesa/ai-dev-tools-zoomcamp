@@ -8,44 +8,49 @@
     .tool-group { display: flex; flex-wrap: wrap; gap: .25rem; padding: .15rem; border: 1px solid #d7deea; border-radius: .4rem; }
     button { min-height: 2.5rem; padding: .35rem .55rem; border: 1px solid #aab4c5; border-radius: .35rem; background: #fff; color: #172033; }
     button:hover, button:focus-visible, button[aria-pressed="true"] { border-color: #1261a0; background: #e6f1ff; }
-    #viewport { position: relative; height: min(590px, calc(100vh - 8rem)); min-height: 280px; overflow: auto; background: #fff; cursor: crosshair; }
+    #viewport { position: relative; height: min(590px, calc(100vh - 8rem)); min-height: 280px; overflow: auto; background: #fff; cursor: crosshair; touch-action: none; }
     #viewport.pan-mode { cursor: grab; }
     #viewport.pan-mode:active { cursor: grabbing; }
     svg { width: 100%; height: 100%; transform-origin: 0 0; }
     .selected { stroke: #1261a0 !important; stroke-width: 3 !important; }
     #selection-box { position: absolute; display: none; border: 2px solid #1261a0; box-shadow: 0 0 0 1px #fff; pointer-events: none; }
     #message { padding: .4rem .6rem; color: #445; }
+    #conflict-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem .6rem; color: #6b4d00; background: #fff7e6; border-block: 1px solid #e7c46a; }
+    #conflict-actions[hidden] { display: none; }
   </style>
   <div id="toolbar">
-    <div class="tool-group" aria-label="Canvas tools"><button data-tool="select" aria-pressed="true" title="Select and inspect elements">Select</button><button data-tool="move" aria-pressed="false" title="Move the selected element">Move</button><button data-tool="pan" aria-pressed="false" title="Pan the canvas">Hand / Pan</button><button data-tool="freehand" aria-pressed="false" title="Draw a freehand stroke">Freehand</button><button data-tool="text" aria-pressed="false" title="Add text">Text</button><button data-tool="rect" aria-pressed="false" title="Add a rectangle">Rectangle</button><button data-tool="connector" aria-pressed="false" title="Add a connector">Connector</button></div>
+    <div class="tool-group" aria-label="Canvas tools"><button data-tool="select" aria-pressed="true" title="Click to select; drag any object to move it">Select / Move</button><button data-tool="pan" aria-pressed="false" title="Pan the canvas">Hand / Pan</button><button data-tool="freehand" aria-pressed="false" title="Draw a freehand stroke">Freehand</button><button data-tool="text" aria-pressed="false" title="Add text">Text</button><button data-tool="rect" aria-pressed="false" title="Add a rectangle">Rectangle</button><button data-tool="square" aria-pressed="false" title="Draw a square with equal sides">Square</button><button data-tool="circle" aria-pressed="false" title="Draw a circle or ellipse">Circle / Ellipse</button><button data-tool="connector" aria-pressed="false" title="Add a connector">Connector</button></div>
     <div class="tool-group" aria-label="Edit tools"><button id="delete" title="Delete selected element">Delete</button><button id="undo" title="Undo the last edit">Undo</button><button id="redo" title="Redo the last edit">Redo</button></div>
     <div class="tool-group" aria-label="Viewport tools"><button id="zoom-in" title="Zoom in">Zoom +</button><button id="zoom-out" title="Zoom out">Zoom −</button><button id="fit" title="Reset zoom and fit the document">Reset / Fit</button></div>
     <div class="tool-group" aria-label="Persistence tools"><button id="save" title="Save the canvas document">Save XML</button><button id="load" title="Reload the latest saved document">Reload XML</button></div>
   </div>
   <div id="message" role="status">Initializing…</div>
+  <div id="conflict-actions" hidden role="alert"><strong>Canvas changed elsewhere.</strong> Choose whether to reload the latest version or reapply your changes.<button type="button" id="reload-latest">Reload latest</button><button type="button" id="reapply-local">Reapply my changes</button></div>
+  <form id="text-editor" hidden aria-label="Text editor"><label>Text <input id="text-value" autocomplete="off"></label><label>Font size (8–96 px) <input id="text-size" type="number" min="8" max="96" value="18"></label><button type="submit">Apply</button><button type="button" id="text-cancel">Cancel</button></form>
   <div id="viewport"><svg id="canvas" viewBox="0 0 1000 600" aria-label="Canvas"></svg><div id="selection-box" aria-hidden="true"></div></div>
   <script>
     const hostOrigin = document.referrer ? new URL(document.referrer).origin : window.location.origin;
     const svg = document.querySelector("#canvas");
     const message = document.querySelector("#message");
     if (new URLSearchParams(window.location.search).get("embedded") === "1") message.hidden = true;
-    let tool = "select", selected = null, revision = 0, zoom = 1, drawing = null, moving = null, panning = null;
+    let tool = "select", selected = null, revision = 0, zoom = 1, drawing = null, moving = null, panning = null, editing = null, conflictLocal = null, conflictLatest = null;
+    const MAX_POINTS = 512;
     const history = [], future = [];
     const send = (value) => parent.postMessage(JSON.stringify(value), hostOrigin);
     const say = (text) => { message.textContent = text; send({ event: "state", text }); };
     const MAX_XML = 500000;
     const NS = "http://www.w3.org/2000/svg";
     const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&apos;"}[char]));
-    const xml = () => `<canvas version="1">${[...svg.children].map((node) => `<shape type="${escape(node.dataset.tool || node.tagName.toLowerCase())}" ${["x","y","x2","y2","width","height","d","fill","stroke"].filter((key) => node.hasAttribute(key)).map((key) => `${key}="${escape(node.getAttribute(key))}"`).join(" ")}>${node.tagName === "text" ? escape(node.textContent || "Text") : ""}</shape>`).join("")}</canvas>`;
+    const xml = () => `<canvas version="1">${[...svg.children].map((node) => `<shape type="${escape(node.dataset.tool || node.tagName.toLowerCase())}" ${["x","y","x2","y2","width","height","cx","cy","rx","ry","d","fill","stroke","font-size","text-anchor"].filter((key) => node.hasAttribute(key)).map((key) => `${key}="${escape(node.getAttribute(key))}"`).join(" ")}>${node.tagName === "text" ? escape(node.textContent || "Text") : ""}</shape>`).join("")}</canvas>`;
     const error = (message) => { svg.replaceChildren(); selected = null; say(message); send({ event: "error", message }); };
     const shapeFrom = (data) => {
       const type = data.getAttribute("type") || "rect";
-      const tag = type === "freehand" ? "path" : type === "text" ? "text" : type === "connector" ? "line" : "rect";
+      const tag = type === "freehand" ? "path" : type === "text" ? "text" : type === "connector" ? "line" : type === "circle" ? "ellipse" : "rect";
       const node = document.createElementNS(NS, tag);
       node.dataset.tool = type;
-      ["x","y","x2","y2","width","height","d","fill","stroke"].forEach((key) => { if (data.hasAttribute(key)) node.setAttribute(key, data.getAttribute(key)); });
+      ["x","y","x2","y2","width","height","cx","cy","rx","ry","d","fill","stroke","font-size","text-anchor"].forEach((key) => { if (data.hasAttribute(key)) node.setAttribute(key, data.getAttribute(key)); });
       if (!node.hasAttribute("stroke")) node.setAttribute("stroke", "#26364a");
-      if (tag === "rect" && !node.hasAttribute("fill")) node.setAttribute("fill", "#d9e9ff");
+      if ((tag === "rect" || tag === "ellipse") && !node.hasAttribute("fill")) node.setAttribute("fill", "#d9e9ff");
       if (tag === "text") { node.setAttribute("fill", node.getAttribute("fill") || "#172033"); node.textContent = data.textContent || "Text"; }
       return node;
     };
@@ -73,6 +78,7 @@
           if (node.tagName === "rect") node.setAttribute("fill", "#d9e9ff");
           if (node.tagName === "text") node.setAttribute("fill", "#172033");
           if (geometry) { ["x","y","width","height"].forEach((key) => { if (geometry.hasAttribute(key)) node.setAttribute(key, geometry.getAttribute(key)); }); }
+          const fontSize = style.match(/fontSize=([^;]+)/)?.[1]; if (fontSize) node.setAttribute("font-size", fontSize);
           if (node.tagName === "line") { node.setAttribute("x2", String(Number(node.getAttribute("x") || 0) + Number(node.getAttribute("width") || 120))); node.setAttribute("y2", String(Number(node.getAttribute("y") || 0) + Number(node.getAttribute("height") || 80))); }
           if (node.tagName === "text") { node.setAttribute("y", String(Number(node.getAttribute("y") || 80) + 24)); node.textContent = value || "Text"; }
           converted.push(node);
@@ -82,21 +88,25 @@
       } catch { error("Canvas document is empty, malformed, or unsupported. Try reloading it."); }
     };
     const record = () => { history.push(xml()); future.length = 0; revision += 1; };
-    const point = (event) => { const box = svg.getBoundingClientRect(); return { x: (event.clientX - box.left) / box.width * 1000, y: (event.clientY - box.top) / box.height * 600 }; };
+    const point = (event) => { const matrix = svg.getScreenCTM(); if (!matrix) return { x: 0, y: 0 }; const value = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()); return { x: Math.max(0, Math.min(1000, value.x)), y: Math.max(0, Math.min(600, value.y)) }; };
     const viewport = document.querySelector("#viewport");
     const selectionBox = document.querySelector("#selection-box");
     const renderSelection = () => { if (!selected) { selectionBox.style.display = "none"; return; } const nodeBox = selected.getBoundingClientRect(), viewportBox = viewport.getBoundingClientRect(); selectionBox.style.display = "block"; selectionBox.style.left = `${nodeBox.left - viewportBox.left + viewport.scrollLeft - 2}px`; selectionBox.style.top = `${nodeBox.top - viewportBox.top + viewport.scrollTop - 2}px`; selectionBox.style.width = `${nodeBox.width}px`; selectionBox.style.height = `${nodeBox.height}px`; };
     const select = (node) => { svg.querySelector(".selected")?.classList.remove("selected"); selected = node && node !== selectionBox ? node : null; selected?.classList.add("selected"); renderSelection(); };
-    const setTool = (next) => { tool = next; viewport.classList.toggle("pan-mode", tool === "pan"); document.querySelectorAll("[data-tool]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.tool === tool))); say(`Tool: ${tool}`); };
-    document.querySelectorAll("[data-tool]").forEach((button) => button.onclick = () => setTool(button.dataset.tool));
+    const setTool = (next) => { tool = next; viewport.classList.toggle("pan-mode", tool === "pan"); document.querySelectorAll("button[data-tool]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.tool === tool))); say(`Tool: ${tool}`); };
+    document.querySelectorAll("button[data-tool]").forEach((button) => button.onclick = () => setTool(button.dataset.tool));
     document.querySelector("#viewport").addEventListener("pointerdown", (event) => {
+      event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId);
       if (tool === "pan") { panning = { x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop }; return; }
-      if (event.target !== svg) { select(event.target); if (tool === "move") moving = { node: event.target, start: point(event), x: Number(event.target.getAttribute("x") || 0), y: Number(event.target.getAttribute("y") || 0), x2: Number(event.target.getAttribute("x2") || 0), y2: Number(event.target.getAttribute("y2") || 0) }; return; }
-      const p = point(event); drawing = { ...p, node: tool === "freehand" ? document.createElementNS(NS, "path") : tool === "text" ? document.createElementNS(NS, "text") : document.createElementNS(NS, tool === "connector" ? "line" : "rect") };
-      const n = drawing.node; n.setAttribute("stroke", "#26364a"); n.setAttribute("fill", tool === "rect" ? "#d9e9ff" : "none"); n.setAttribute("data-tool", tool); n.setAttribute("x", p.x); n.setAttribute("y", p.y); if (tool === "text") n.textContent = "Text"; if (tool === "rect") { n.setAttribute("width", "140"); n.setAttribute("height", "70"); } if (tool === "connector") { n.setAttribute("x2", p.x + 120); n.setAttribute("y2", p.y + 80); } svg.append(n); select(n);
+      if (event.target !== svg) { const target = event.target.closest?.("[data-tool]") || event.target; if (tool === "select") { select(target); moving = { node: target, start: point(event), attrs: Object.fromEntries(["x","y","x2","y2","cx","cy","d"].map((key) => [key, target.getAttribute(key)])) }; } return; }
+      if (tool === "select") { select(null); return; }
+      const p = point(event); const tag = tool === "freehand" ? "path" : tool === "text" ? "text" : tool === "connector" ? "line" : tool === "circle" ? "ellipse" : "rect"; drawing = { ...p, points: [p], node: document.createElementNS(NS, tag) };
+      const n = drawing.node; n.setAttribute("stroke", "#26364a"); n.setAttribute("fill", ["rect","square","circle"].includes(tool) ? "#d9e9ff" : "none"); n.setAttribute("data-tool", tool); n.setAttribute("x", p.x); n.setAttribute("y", p.y); if (tool === "text") { n.textContent = "Text"; n.setAttribute("font-size", "18"); } if (tool === "connector") { n.setAttribute("x2", p.x); n.setAttribute("y2", p.y); } if (tool === "circle") { n.setAttribute("cx", p.x); n.setAttribute("cy", p.y); n.setAttribute("rx", 1); n.setAttribute("ry", 1); } svg.append(n); select(n); if (tool === "text") beginTextEdit(n);
     });
-    viewport.addEventListener("pointermove", (event) => { if (panning) { viewport.scrollLeft = panning.left - (event.clientX - panning.x); viewport.scrollTop = panning.top - (event.clientY - panning.y); return; } const p = point(event); if (moving) { const dx = p.x - moving.start.x, dy = p.y - moving.start.y, n = moving.node; if (n.hasAttribute("x")) n.setAttribute("x", moving.x + dx); if (n.hasAttribute("y")) n.setAttribute("y", moving.y + dy); if (n.hasAttribute("x2")) n.setAttribute("x2", moving.x2 + dx); if (n.hasAttribute("y2")) n.setAttribute("y2", moving.y2 + dy); renderSelection(); return; } if (!drawing) return; const n = drawing.node; if (tool === "freehand") n.setAttribute("d", `M ${drawing.x} ${drawing.y} L ${p.x} ${p.y}`); else if (tool === "connector") { n.setAttribute("x2", p.x); n.setAttribute("y2", p.y); } else { n.setAttribute("width", Math.abs(p.x - drawing.x)); n.setAttribute("height", Math.abs(p.y - drawing.y)); } });
-    window.addEventListener("pointerup", () => { if (panning) { panning = null; return; } if (drawing || moving) { record(); drawing = null; moving = null; renderSelection(); say("Edited"); } });
+    viewport.addEventListener("pointermove", (event) => { event.preventDefault(); if (panning) { viewport.scrollLeft = panning.left - (event.clientX - panning.x); viewport.scrollTop = panning.top - (event.clientY - panning.y); return; } const p = point(event); if (moving) { const dx = p.x - moving.start.x, dy = p.y - moving.start.y, n = moving.node; ["x","y","x2","y2","cx","cy"].forEach((key) => { if (moving.attrs[key] !== null) n.setAttribute(key, Math.max(0, Number(moving.attrs[key]) + (["x","x2","cx"].includes(key) ? dx : dy))); }); if (moving.attrs.d) n.setAttribute("d", moving.attrs.d.replace(/([ML])\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g, (_, command, x, y) => `${command} ${Number(x) + dx} ${Number(y) + dy}`)); renderSelection(); return; } if (!drawing) return; const n = drawing.node; if (tool === "freehand") { const last = drawing.points.at(-1); if ((!last || Math.hypot(p.x - last.x, p.y - last.y) >= 2) && drawing.points.length < MAX_POINTS) drawing.points.push(p); n.setAttribute("d", drawing.points.map((sample, index) => `${index ? "L" : "M"} ${sample.x} ${sample.y}`).join(" ")); } else if (tool === "connector") { n.setAttribute("x2", p.x); n.setAttribute("y2", p.y); } else if (tool === "circle") { const size = Math.max(20, Math.max(Math.abs(p.x - drawing.x), Math.abs(p.y - drawing.y))); n.setAttribute("cx", drawing.x + (p.x < drawing.x ? -size : size) / 2); n.setAttribute("cy", drawing.y + (p.y < drawing.y ? -size : size) / 2); n.setAttribute("rx", size / 2); n.setAttribute("ry", size / 2); } else if (tool === "square" || tool === "rect") { const size = tool === "square" ? Math.max(20, Math.max(Math.abs(p.x - drawing.x), Math.abs(p.y - drawing.y))) : 0; n.setAttribute("x", Math.min(drawing.x, p.x)); n.setAttribute("y", Math.min(drawing.y, p.y)); n.setAttribute("width", tool === "square" ? size : Math.abs(p.x - drawing.x)); n.setAttribute("height", tool === "square" ? size : Math.abs(p.y - drawing.y)); } });
+    const cancelPointer = () => { if (drawing) drawing.node.remove(); drawing = null; moving = null; panning = null; renderSelection(); say("Gesture cancelled"); };
+    const finishPointer = () => { if (panning) { panning = null; return; } if (drawing || moving) { if (drawing && tool === "freehand" && drawing.points.length < 2) return cancelPointer(); record(); drawing = null; moving = null; renderSelection(); say("Edited"); } };
+    viewport.addEventListener("pointerup", finishPointer); viewport.addEventListener("pointercancel", cancelPointer);
     document.querySelector("#delete").onclick = () => { if (selected) { selected.remove(); selected = null; record(); say("Deleted selection"); } };
     document.querySelector("#undo").onclick = () => { const prior = history.pop(); if (!prior) return; future.push(xml()); restore(history.at(-1) || "<canvas version='1'><shape type='text' x='80' y='90'>Interview canvas</shape></canvas>"); say("Undo"); };
     document.querySelector("#redo").onclick = () => { const next = future.pop(); if (!next) return; history.push(xml()); restore(next); say("Redo"); };
@@ -105,9 +115,30 @@
     document.querySelector("#fit").onclick = () => { zoom = 1; svg.style.transform = "scale(1)"; viewport.scrollLeft = 0; viewport.scrollTop = 0; renderSelection(); say("Canvas reset to fit"); };
     document.querySelector("#save").onclick = () => send({ event: "saved", revision, xml: xml() });
     document.querySelector("#load").onclick = () => send({ event: "request-load" });
-    window.addEventListener("message", (event) => { if (event.origin !== hostOrigin || event.source !== parent) return; let value; try { value = JSON.parse(event.data); } catch { return; } if (value.action === "load") restore(value.xml, value.revision); });
-    document.addEventListener("dblclick", (event) => { if (event.target?.tagName?.toLowerCase() === "text" && selected === event.target) { const value = window.prompt("Edit text", selected.textContent || "Text"); if (value !== null && value.trim()) { selected.textContent = value.trim(); record(); say("Text edited"); } } });
-    document.addEventListener("keydown", (event) => { if ((event.key === "Delete" || event.key === "Backspace") && selected) { event.preventDefault(); document.querySelector("#delete").click(); } });
+    window.addEventListener("message", (event) => { if (event.origin !== hostOrigin || event.source !== parent) return; let value; try { value = JSON.parse(event.data); } catch { return; } if (value.action === "load") restore(value.xml, value.revision); if (value.action === "conflict") { conflictLocal = value.localXml; conflictLatest = { xml: value.xml, revision: value.revision }; conflictActions.hidden = false; say("Conflict: choose reload latest or reapply your changes"); } if (value.action === "error") say(value.message); });
+    const textEditor = document.querySelector("#text-editor"), textValue = document.querySelector("#text-value"), textSize = document.querySelector("#text-size");
+    const beginTextEdit = (node) => { editing = node; textValue.value = node.textContent || "Text"; textSize.value = node.getAttribute("font-size") || "18"; textEditor.hidden = false; textValue.focus(); textValue.select(); };
+    document.addEventListener("dblclick", (event) => { if (event.target?.tagName?.toLowerCase() === "text" && selected === event.target) beginTextEdit(selected); });
+    textEditor.addEventListener("submit", (event) => { event.preventDefault(); if (editing) { editing.textContent = textValue.value.trim() || "Text"; editing.setAttribute("font-size", String(Math.max(8, Math.min(96, Number(textSize.value) || 18)))); record(); renderSelection(); say("Text edited"); } textEditor.hidden = true; editing = null; });
+    document.querySelector("#text-cancel").onclick = () => { textEditor.hidden = true; editing = null; say("Text edit cancelled"); };
+    textEditor.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.preventDefault(); textEditor.hidden = true; editing = null; say("Text edit cancelled"); } });
+    const conflictActions = document.querySelector("#conflict-actions");
+    const clearConflict = () => { conflictActions.hidden = true; conflictLocal = null; conflictLatest = null; };
+    document.querySelector("#reload-latest").onclick = () => { if (conflictLatest) restore(conflictLatest.xml, conflictLatest.revision); clearConflict(); say("Reloaded latest canvas version"); };
+    document.querySelector("#reapply-local").onclick = () => { if (conflictLocal && conflictLatest) { restore(conflictLocal, conflictLatest.revision); send({ event: "saved", revision, xml: xml() }); } clearConflict(); say("Reapplied local changes; saving…"); };
+    document.addEventListener("keydown", (event) => {
+      if ((event.key === "Delete" || event.key === "Backspace") && selected) { event.preventDefault(); document.querySelector("#delete").click(); return; }
+      if (!selected || !event.shiftKey || !["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.key)) return;
+      event.preventDefault(); const step = 10; const numeric = (name, fallback) => Number(selected.getAttribute(name) || fallback);
+      if (selected.tagName === "rect" || selected.tagName === "ellipse") {
+        if (selected.tagName === "ellipse") { const radius = Math.max(10, numeric("rx", 10) + (event.key === "ArrowUp" || event.key === "ArrowLeft" ? -step / 2 : step / 2)); selected.setAttribute("rx", radius); selected.setAttribute("ry", radius); }
+        else { if (event.key === "ArrowRight") selected.setAttribute("width", Math.max(20, numeric("width", 20) + step)); if (event.key === "ArrowLeft") selected.setAttribute("width", Math.max(20, numeric("width", 20) - step)); if (event.key === "ArrowDown") selected.setAttribute("height", Math.max(20, numeric("height", 20) + step)); if (event.key === "ArrowUp") selected.setAttribute("height", Math.max(20, numeric("height", 20) - step)); }
+      } else if (selected.tagName === "text") {
+        const size = Math.max(8, Math.min(96, numeric("font-size", 18) + (event.key === "ArrowUp" || event.key === "ArrowRight" ? 1 : -1)));
+        selected.setAttribute("font-size", size);
+      }
+      record(); renderSelection(); say("Resized selection");
+    });
     viewport.addEventListener("scroll", renderSelection);
     viewport.addEventListener("wheel", (event) => { if (event.ctrlKey) { event.preventDefault(); zoom = Math.max(.5, Math.min(2, zoom - event.deltaY / 1000)); svg.style.transform = `scale(${zoom})`; renderSelection(); say(`Zoom ${Math.round(zoom * 100)}%`); } }, { passive: false });
     send({ event: "init" });
