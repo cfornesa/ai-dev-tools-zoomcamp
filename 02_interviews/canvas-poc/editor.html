@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8">
+  <title>Local editor protocol harness</title>
+  <style>
+    body { margin: 0; font: 14px system-ui, sans-serif; }
+    #toolbar { display: flex; flex-wrap: wrap; gap: .35rem; padding: .5rem; border-bottom: 1px solid #ccd3df; }
+    button { padding: .35rem .55rem; }
+    #viewport { height: min(590px, calc(100vh - 8rem)); min-height: 280px; overflow: auto; background: #fff; cursor: crosshair; }
+    svg { width: 100%; height: 100%; transform-origin: 0 0; }
+    .selected { stroke: #1261a0 !important; stroke-width: 3 !important; }
+    #message { padding: .4rem .6rem; color: #445; }
+  </style>
+  <div id="toolbar">
+    <button data-tool="freehand">Freehand</button><button data-tool="text">Text</button>
+    <button data-tool="move">Move</button>
+    <button data-tool="rect">Rectangle</button><button data-tool="connector">Connector</button>
+    <button id="delete">Delete</button><button id="undo">Undo</button><button id="redo">Redo</button>
+    <button id="zoom-in">Zoom +</button><button id="zoom-out">Zoom −</button>
+    <button id="save">Save XML</button><button id="load">Reload XML</button>
+  </div>
+  <div id="message" role="status">Initializing…</div>
+  <div id="viewport"><svg id="canvas" viewBox="0 0 1000 600" aria-label="Canvas"></svg></div>
+  <script>
+    const hostOrigin = document.referrer ? new URL(document.referrer).origin : window.location.origin;
+    const svg = document.querySelector("#canvas");
+    const message = document.querySelector("#message");
+    let tool = "rect", selected = null, revision = 0, zoom = 1, drawing = null, moving = null;
+    const history = [], future = [];
+    const send = (value) => parent.postMessage(JSON.stringify(value), hostOrigin);
+    const say = (text) => { message.textContent = text; send({ event: "state", text }); };
+    const MAX_XML = 500000;
+    const NS = "http://www.w3.org/2000/svg";
+    const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&apos;"}[char]));
+    const xml = () => `<canvas version="1">${[...svg.children].map((node) => `<shape type="${escape(node.dataset.tool || node.tagName.toLowerCase())}" ${["x","y","x2","y2","width","height","d","fill","stroke"].filter((key) => node.hasAttribute(key)).map((key) => `${key}="${escape(node.getAttribute(key))}"`).join(" ")}>${node.tagName === "text" ? escape(node.textContent || "Text") : ""}</shape>`).join("")}</canvas>`;
+    const error = (message) => { svg.replaceChildren(); selected = null; say(message); send({ event: "error", message }); };
+    const shapeFrom = (data) => {
+      const type = data.getAttribute("type") || "rect";
+      const tag = type === "freehand" ? "path" : type === "text" ? "text" : type === "connector" ? "line" : "rect";
+      const node = document.createElementNS(NS, tag);
+      node.dataset.tool = type;
+      ["x","y","x2","y2","width","height","d","fill","stroke"].forEach((key) => { if (data.hasAttribute(key)) node.setAttribute(key, data.getAttribute(key)); });
+      if (!node.hasAttribute("stroke")) node.setAttribute("stroke", "#26364a");
+      if (tag === "rect" && !node.hasAttribute("fill")) node.setAttribute("fill", "#d9e9ff");
+      if (tag === "text") { node.setAttribute("fill", node.getAttribute("fill") || "#172033"); node.textContent = data.textContent || "Text"; }
+      return node;
+    };
+    const restore = (value, nextRevision = revision) => {
+      if (typeof value !== "string" || value.length > MAX_XML) return error("Canvas document is empty, malformed, or too large. Try reloading it.");
+      try {
+        const parsed = new DOMParser().parseFromString(value, "application/xml");
+        if (parsed.querySelector("parsererror")) throw new Error("malformed");
+        const canvas = parsed.querySelector("canvas");
+        const legacy = parsed.querySelector("diagram root");
+        const mxRoot = parsed.querySelector("mxGraphModel root");
+        const nodes = canvas ? [...canvas.querySelectorAll(":scope > shape")] : legacy ? [...legacy.children].filter((node) => node.tagName !== "mxCell") : [];
+        const converted = nodes.map(shapeFrom);
+        if (!canvas && !legacy && !mxRoot) throw new Error("unsupported");
+        if (mxRoot) mxRoot.querySelectorAll(":scope > mxCell").forEach((cell) => {
+          if (cell.getAttribute("vertex") !== "1" && cell.getAttribute("edge") !== "1") return;
+          const geometry = cell.querySelector("mxGeometry");
+          const style = cell.getAttribute("style") || "";
+          const edge = cell.getAttribute("edge") === "1";
+          const value = cell.getAttribute("value") || "";
+          const textCell = !edge && (style.includes("text") || value.trim().length > 0);
+          const node = document.createElementNS(NS, edge || !textCell ? (edge ? "line" : "rect") : "text");
+          node.dataset.tool = edge ? "connector" : textCell ? "text" : "rect";
+          node.setAttribute("stroke", "#26364a");
+          if (node.tagName === "rect") node.setAttribute("fill", "#d9e9ff");
+          if (node.tagName === "text") node.setAttribute("fill", "#172033");
+          if (geometry) { ["x","y","width","height"].forEach((key) => { if (geometry.hasAttribute(key)) node.setAttribute(key, geometry.getAttribute(key)); }); }
+          if (node.tagName === "line") { node.setAttribute("x2", String(Number(node.getAttribute("x") || 0) + Number(node.getAttribute("width") || 120))); node.setAttribute("y2", String(Number(node.getAttribute("y") || 0) + Number(node.getAttribute("height") || 80))); }
+          if (node.tagName === "text") { node.setAttribute("y", String(Number(node.getAttribute("y") || 80) + 24)); node.textContent = value || "Text"; }
+          converted.push(node);
+        });
+        if (!converted.length) throw new Error("empty");
+        svg.replaceChildren(...converted); selected = null; revision = Number.isInteger(nextRevision) && nextRevision >= 0 ? nextRevision : revision; say("Loaded XML snapshot");
+      } catch { error("Canvas document is empty, malformed, or unsupported. Try reloading it."); }
+    };
+    const record = () => { history.push(xml()); future.length = 0; revision += 1; };
+    const point = (event) => { const box = svg.getBoundingClientRect(); return { x: (event.clientX - box.left) / box.width * 1000, y: (event.clientY - box.top) / box.height * 600 }; };
+    const select = (node) => { svg.querySelector(".selected")?.classList.remove("selected"); selected = node; selected?.classList.add("selected"); };
+    document.querySelectorAll("[data-tool]").forEach((button) => button.onclick = () => { tool = button.dataset.tool; say(`Tool: ${tool}`); });
+    document.querySelector("#viewport").addEventListener("pointerdown", (event) => {
+      if (event.target !== svg) { select(event.target); if (tool === "move") moving = { node: event.target, start: point(event), x: Number(event.target.getAttribute("x") || 0), y: Number(event.target.getAttribute("y") || 0), x2: Number(event.target.getAttribute("x2") || 0), y2: Number(event.target.getAttribute("y2") || 0) }; return; }
+      const p = point(event); drawing = { ...p, node: tool === "freehand" ? document.createElementNS(NS, "path") : tool === "text" ? document.createElementNS(NS, "text") : document.createElementNS(NS, tool === "connector" ? "line" : "rect") };
+      const n = drawing.node; n.setAttribute("stroke", "#26364a"); n.setAttribute("fill", tool === "rect" ? "#d9e9ff" : "none"); n.setAttribute("data-tool", tool); n.setAttribute("x", p.x); n.setAttribute("y", p.y); if (tool === "text") n.textContent = "Text"; if (tool === "rect") { n.setAttribute("width", "140"); n.setAttribute("height", "70"); } if (tool === "connector") { n.setAttribute("x2", p.x + 120); n.setAttribute("y2", p.y + 80); } svg.append(n); select(n);
+    });
+    document.querySelector("#viewport").addEventListener("pointermove", (event) => { const p = point(event); if (moving) { const dx = p.x - moving.start.x, dy = p.y - moving.start.y, n = moving.node; if (n.hasAttribute("x")) n.setAttribute("x", moving.x + dx); if (n.hasAttribute("y")) n.setAttribute("y", moving.y + dy); if (n.hasAttribute("x2")) n.setAttribute("x2", moving.x2 + dx); if (n.hasAttribute("y2")) n.setAttribute("y2", moving.y2 + dy); return; } if (!drawing) return; const n = drawing.node; if (tool === "freehand") n.setAttribute("d", `M ${drawing.x} ${drawing.y} L ${p.x} ${p.y}`); else if (tool === "connector") { n.setAttribute("x2", p.x); n.setAttribute("y2", p.y); } else { n.setAttribute("width", Math.abs(p.x - drawing.x)); n.setAttribute("height", Math.abs(p.y - drawing.y)); } });
+    window.addEventListener("pointerup", () => { if (drawing || moving) { record(); drawing = null; moving = null; say("Edited"); } });
+    document.querySelector("#delete").onclick = () => { if (selected) { selected.remove(); selected = null; record(); say("Deleted selection"); } };
+    document.querySelector("#undo").onclick = () => { const prior = history.pop(); if (!prior) return; future.push(xml()); restore(history.at(-1) || "<canvas version='1'><shape type='text' x='80' y='90'>Interview canvas</shape></canvas>"); say("Undo"); };
+    document.querySelector("#redo").onclick = () => { const next = future.pop(); if (!next) return; history.push(xml()); restore(next); say("Redo"); };
+    document.querySelector("#zoom-in").onclick = () => { zoom = Math.min(2, zoom + .1); svg.style.transform = `scale(${zoom})`; say(`Zoom ${Math.round(zoom * 100)}%`); };
+    document.querySelector("#zoom-out").onclick = () => { zoom = Math.max(.5, zoom - .1); svg.style.transform = `scale(${zoom})`; say(`Zoom ${Math.round(zoom * 100)}%`); };
+    document.querySelector("#save").onclick = () => send({ event: "saved", revision, xml: xml() });
+    document.querySelector("#load").onclick = () => send({ event: "request-load" });
+    window.addEventListener("message", (event) => { if (event.origin !== hostOrigin || event.source !== parent) return; let value; try { value = JSON.parse(event.data); } catch { return; } if (value.action === "load") restore(value.xml, value.revision); });
+    document.addEventListener("keydown", (event) => { if ((event.key === "Delete" || event.key === "Backspace") && selected) { event.preventDefault(); document.querySelector("#delete").click(); } });
+    document.querySelector("#viewport").addEventListener("wheel", (event) => { if (event.ctrlKey) { event.preventDefault(); zoom = Math.max(.5, Math.min(2, zoom - event.deltaY / 1000)); svg.style.transform = `scale(${zoom})`; say(`Zoom ${Math.round(zoom * 100)}%`); } }, { passive: false });
+    send({ event: "init" });
+  </script>
+</html>
