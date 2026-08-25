@@ -1130,3 +1130,157 @@ Make every non-completed session detail view explicitly communicate invitation s
 ### Dependency
 
 - Depends on issue #62 for the backend non-completed-session invite rule and token invalidation behavior.
+
+## 48. Provide a working repository-root Compose entrypoint
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/69
+
+### Goal
+
+Make the documented command `docker compose up --build` work when run from the
+repository root, while keeping `02_interviews/` independently runnable and
+keeping the unrelated `01_todo` project out of the Compose stack.
+
+### Acceptance criteria
+
+- [ ] From a clean checkout at the repository root, `docker compose config` resolves the PostgreSQL, backend, frontend, canvas-sync, and canvas-editor services without a missing-configuration error.
+- [ ] `docker compose up --build` from the repository root starts the same five services with working build contexts, environment-file defaults, health checks, dependency ordering, ports, and named volumes as the project-scoped command.
+- [ ] Running `docker compose up --build` from `02_interviews/` remains supported and does not create a second incompatible project configuration.
+- [ ] A root-level `.env.example` or an equivalent documented environment handoff makes all required interpolation values unambiguous; no command requires activating `01_todo/.venv`.
+- [ ] Root and project documentation provide copyable setup, start, rebuild, stop, data-reset, test, and troubleshooting commands, including the prior `no configuration file provided` failure mode.
+- [ ] Automated verification exercises both invocation directories and asserts that the expected service names and dependency health conditions are present.
+
+### Out of scope
+
+- Invite lifecycle behavior is task 49 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/70.
+- Shared control styling is task 50 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/71.
+- Canvas interaction and persistence are tasks 51–52 / issues https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/72 and https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/73.
+
+### Constraints
+
+- Keep the `01_todo` Django project independent.
+- Reuse the existing five-service Compose architecture; do not add production hosting.
+- Preserve named-volume data and existing port override behavior.
+
+## 49. Make candidate-link generation and regeneration reliable end to end
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/70
+
+### Goal
+
+Ensure an administrator can always see and use the correct Generate or
+Regenerate action for a joinable session and can copy the resulting candidate
+link without encountering a blank invitation section.
+
+### Acceptance criteria
+
+- [ ] Scheduled, active, and expired-pending session details explicitly render absent, active, expired, redeemed, revoked, loading, and unavailable invitation states.
+- [ ] A joinable session with no invite shows Generate invite; a joinable session with an expired, redeemed, or revoked invite shows Regenerate invite; completed sessions show the reason recovery is unavailable and no generation control.
+- [ ] Generate and Regenerate return a fresh URL with an expiry, invalidate prior usable invites when required, display the URL in a dedicated copyable field, and provide visible success and clipboard-failure feedback.
+- [ ] The API and UI use the same joinable-session rule, including the expired-pending-facilitator-action state; completed-session attempts fail with a visible non-sensitive error.
+- [ ] Repeated loading, API failure, and refresh after generation never leave the invitation section blank or hide the session actions.
+- [ ] Component and browser tests cover absent, expired, redeemed, revoked, generated, regenerated, completed, API-failure, and clipboard-failure cases without exposing raw tokens in logs or unrelated content.
+
+### Out of scope
+
+- Root Compose invocation is task 48 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/69.
+- Shared navigation/button visual conventions are task 50 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/71.
+- Canvas editor behavior is tasks 51–52 / issues https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/72 and https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/73.
+
+### Constraints
+
+- Preserve invite hashing, expiry, rate limiting, session scoping, audit history, and candidate authorization.
+- Do not add email/SMS delivery or a new persistence dependency.
+- Use the existing typed service boundary and backend invite endpoints unless a contract correction is required.
+
+## 50. Normalize action controls and navigation semantics across the application
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/71
+
+### Goal
+
+Give administrators, facilitators, and candidates a consistent control language:
+navigational links retain link semantics but look like intentional buttons, and
+mutating actions remain native buttons with clear grouping and state feedback.
+
+### Acceptance criteria
+
+- [ ] Brand, Sessions, Open workspace, Evaluation, Enter session, Leave, and other navigation actions have consistent button-style treatment while remaining keyboard- and screen-reader-accessible links.
+- [ ] Finish, Extend, Generate, Regenerate, Revoke, Save, Copy, Delete, and editor actions remain native buttons with distinct primary, secondary, destructive, disabled, loading, and success/error states.
+- [ ] Adjacent controls have visible separation, predictable ordering, and at least the documented 44px touch target; focus indicators remain visible without relying on hover.
+- [ ] Session detail, live workspace, invitation, evaluation, and shell controls reflow without horizontal overflow at phone, tablet, and desktop widths, including long labels.
+- [ ] Browser and component tests assert accessible roles/semantics, style/state classes, focusability, touch-target geometry, and the screenshot scenarios that previously rendered plain links or merged buttons.
+- [ ] The design documentation records the control taxonomy, spacing, hierarchy, responsive breakpoints, and when to use a link versus a button.
+
+### Out of scope
+
+- Root Compose startup is task 48 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/69.
+- Invitation state/API behavior is task 49 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/70.
+- Canvas-specific toolbar interaction is task 51 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/72.
+
+### Constraints
+
+- Preserve route semantics, authorization boundaries, lifecycle actions, and evaluation privacy.
+- Do not replace links with click-only controls or introduce a UI framework dependency.
+- Follow the project-local responsive guidance where the repository has no external design-system file.
+
+## 51. Deliver a familiar tldraw-like canvas interaction surface
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/72
+
+### Goal
+
+Make the self-hosted canvas feel like an understandable collaborative drawing
+workspace, with discoverable tools and direct manipulation for drawing, text,
+shapes, connectors, selection, and viewport navigation.
+
+### Acceptance criteria
+
+- [ ] The editor presents grouped, accessible tools for select, hand/pan, freehand, text, rectangle/shape, connector, delete, undo, redo, zoom, reset/fit, save, and reload, with tooltips or equivalent discoverability and a visible active/disabled state.
+- [ ] Freehand strokes, text, rectangles/shapes, and connectors can be created with pointer or touch input on the visible canvas; creation does not require editing XML or using browser prompts for the initial content.
+- [ ] Users can select an element, see a selection box, move it, resize it where supported, edit text, delete it, and use keyboard shortcuts without accidentally scrolling the interview page.
+- [ ] Pan, zoom, reset/fit, pointer capture, and bounded document scrolling work at supported desktop and mobile viewport sizes without hiding the canvas beneath the toolbar.
+- [ ] Facilitator and candidate receive the same editor affordances and existing role/lifecycle authorization remains unchanged.
+- [ ] Browser coverage exercises each tool family, active state, creation, selection/manipulation, text editing, keyboard deletion, pan/zoom, and narrow viewport behavior using visible rendered elements rather than XML-only assertions.
+- [ ] Documentation clearly distinguishes this dependency-free compatibility editor from upstream tldraw/draw.io and records supported gestures, shortcuts, limitations, and accessibility behavior.
+
+### Out of scope
+
+- Durable cross-client synchronization and restart recovery are task 52 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/73.
+- Root Compose startup is task 48 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/69.
+- Application-wide control styling is task 50 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/71.
+- Shared code editing and code execution remain outside the MVP.
+
+### Constraints
+
+- Preserve exact iframe origin/source checks, room authorization, XML size limits, and token-safe diagnostics.
+- Do not add a large editor dependency or vendor upstream assets without an explicit licensing decision.
+- Keep the canonical SVG-backed document model and conversion boundary documented.
+
+## 52. Make canvas persistence, collaboration, and status presentation trustworthy
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/73
+
+### Goal
+
+Ensure the visible canvas is initialized from the authoritative room document,
+survives save/reload/reconnect/restart, remains shared between authorized
+participants, and presents one coherent status without duplicate or misleading
+messages.
+
+### Acceptance criteria
+
+- [ ] The live workspace always shows a bounded, visibly usable canvas after authorization; an empty, malformed, unsupported, or oversized document produces a recoverable inline error while session controls remain usable.
+- [ ] The initial persisted document is converted to visible editor elements, and save, refresh, reconnect, canvas-sync restart, and Reload restore the latest accepted document rather than a blank surface.
+- [ ] Two authorized participants receive the same initial document and subsequent accepted edits; cross-session, stale-revision, unauthorized, and oversized updates are rejected without replacing the authoritative document.
+- [ ] The host and editor expose one consolidated status area covering connecting, connected, edited, saving, saved, conflict/reloaded, disconnected/retrying, and error states; duplicate “Edited/Loaded” strips and raw XML/token diagnostics are absent.
+- [ ] The iframe, toolbar, status area, document viewport, and scroll behavior remain bounded and usable at representative phone, tablet, and desktop dimensions.
+- [ ] Backend/canvas-sync tests cover revision conflict, restart restoration, room cleanup, authorization, size limits, and token-safe diagnostics; browser tests cover visible render, edit/save/reload, reconnect/degraded state, and multi-client convergence.
+- [ ] Documentation identifies the authoritative persistence owner, conflict policy, restart behavior, status vocabulary, and known compatibility limitations.
+
+### Out of scope
+
+- Direct editor tool and manipulation behavior is task 51 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/72.
+- Root Compose startup is task 48 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/69.
+- Application-wide navigation/control styling is task 50 / issue https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/71.
+
+### Constraints
+
+- Keep FastAPI/canvas-sync authoritative for session access and room state; do not move lifecycle or invitation data into the editor.
+- Preserve the existing XML transport contract, room identifiers, revision checks, and bounded persistence.
+- Do not introduce shared code editing, code execution, or a new database dependency.
