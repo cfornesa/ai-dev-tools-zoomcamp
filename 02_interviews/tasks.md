@@ -8,6 +8,16 @@ the task numbers in this document until the tasks are created as GitHub issues.
 
 ## Newly reported gaps (2026-08-25)
 
+### Full application E2E and development-admin readiness
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/89
+
+The Compose-backed full Playwright suite now reaches all services, but the
+session-list fixture does not observe its expected `View Session` link and the
+documented development-admin credentials receive HTTP 401 during the smoke
+flow. Stabilize those application-stack checks so the full E2E command can
+serve as an authoritative gate for the canvas follow-ups.
+
 These groomed issues were created from the facilitator/candidate screenshot and
 the follow-up interaction report. They are scoped to `02_interviews`; do not
 work on them in parallel with another project.
