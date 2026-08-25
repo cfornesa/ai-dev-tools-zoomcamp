@@ -62,10 +62,10 @@
         const canvas = parsed.querySelector("canvas");
         const legacy = parsed.querySelector("diagram root");
         const mxRoot = parsed.querySelector("mxGraphModel root");
-        const nodes = canvas ? [...canvas.querySelectorAll(":scope > shape")] : legacy ? [...legacy.children].filter((node) => node.tagName !== "mxCell") : [];
+        const nodes = canvas ? [...canvas.querySelectorAll(":scope > shape")] : legacy && !mxRoot ? [...legacy.children].filter((node) => node.tagName !== "mxCell") : [];
         const converted = nodes.map(shapeFrom);
         if (!canvas && !legacy && !mxRoot) throw new Error("unsupported");
-        if (mxRoot) mxRoot.querySelectorAll(":scope > mxCell").forEach((cell) => {
+        if (mxRoot) [...mxRoot.children].filter((cell) => cell.tagName === "mxCell").forEach((cell) => {
           if (cell.getAttribute("vertex") !== "1" && cell.getAttribute("edge") !== "1") return;
           const geometry = cell.querySelector("mxGeometry");
           const style = cell.getAttribute("style") || "";
