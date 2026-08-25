@@ -31,7 +31,7 @@ migrate:
 	docker compose exec backend alembic upgrade head
 
 e2e:
-	cd frontend && npm run e2e
+	set -a; [ ! -f .env ] || . ./.env; set +a; cd frontend && npm run e2e
 
 contract-check:
 	cd backend && uv run python scripts/compare_openapi.py
