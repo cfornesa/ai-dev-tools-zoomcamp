@@ -29,6 +29,7 @@ test.describe("self-hosted canvas protocol POC", () => {
     await page.mouse.down();
     await page.mouse.move(rectangleBox.x + 40, rectangleBox.y + 40);
     await page.mouse.up();
+    await expect(editor.locator("svg rect.selected")).toHaveCount(1);
     await editor.getByRole("button", { name: "Save XML" }).click();
     await expect(page.getByRole("status")).toContainText("Saved revision");
     await editor.getByRole("button", { name: "Delete" }).click();

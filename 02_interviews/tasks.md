@@ -27,6 +27,14 @@ The disposable POC browser test still expects the removed Select/Move split and
 uses incomplete synthetic pointer events. Update the test to the current editor
 contract and verify the POC suite in CI.
 
+### PR follow-up: Canvas POC delete after captured drag
+
+GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/88
+
+The updated POC browser flow reaches the delete step but the moved rectangle
+remains rendered. Preserve selection through the captured pointer gesture so
+Delete removes the selected shape and Reload restores the saved snapshot.
+
 ### Canvas text editing and resizing
 
 GitHub issue: https://github.com/cfornesa/ai-dev-tools-zoomcamp/issues/81
