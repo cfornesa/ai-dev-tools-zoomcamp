@@ -27,7 +27,7 @@
   <div id="message" role="status">Initializing…</div>
   <div id="conflict-actions" hidden role="alert"><strong>Canvas changed elsewhere.</strong> Choose whether to reload the latest version or reapply your changes.<button type="button" id="reload-latest">Reload latest</button><button type="button" id="reapply-local">Reapply my changes</button></div>
   <form id="text-editor" hidden aria-label="Text editor"><label>Text <input id="text-value" autocomplete="off"></label><label>Font size (8–96 px) <input id="text-size" type="number" min="8" max="96" value="18"></label><button type="submit">Apply</button><button type="button" id="text-cancel">Cancel</button></form>
-  <div id="viewport"><svg id="canvas" viewBox="0 0 1000 600" aria-label="Canvas"></svg><div id="selection-box" aria-hidden="true"></div></div>
+  <div id="viewport"><svg id="canvas" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-label="Canvas"></svg><div id="selection-box" aria-hidden="true"></div></div>
   <script>
     const hostOrigin = document.referrer ? new URL(document.referrer).origin : window.location.origin;
     const svg = document.querySelector("#canvas");
@@ -98,8 +98,11 @@
     document.querySelector("#viewport").addEventListener("pointerdown", (event) => {
       event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId);
       if (tool === "pan") { panning = { x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop }; return; }
-      if (event.target !== svg && tool === "select") { const target = event.target.closest?.("[data-tool]") || event.target; select(target); moving = { node: target, start: point(event), attrs: Object.fromEntries(["x","y","x2","y2","cx","cy","d"].map((key) => [key, target.getAttribute(key)])) }; return; }
-      if (tool === "select") { select(null); return; }
+      if (tool === "select") {
+        const target = event.target?.closest?.("[data-tool]");
+        if (!target || target.ownerSVGElement !== svg) { select(null); return; }
+        select(target); moving = { node: target, start: point(event), attrs: Object.fromEntries(["x","y","x2","y2","cx","cy","d"].map((key) => [key, target.getAttribute(key)])) }; return;
+      }
       const p = point(event); const tag = tool === "freehand" ? "path" : tool === "text" ? "text" : tool === "connector" ? "line" : tool === "circle" ? "ellipse" : "rect"; drawing = { ...p, points: [p], node: document.createElementNS(NS, tag) };
       const n = drawing.node; n.setAttribute("stroke", "#26364a"); n.setAttribute("fill", ["rect","square","circle"].includes(tool) ? "#d9e9ff" : "none"); n.setAttribute("data-tool", tool); n.setAttribute("x", p.x); n.setAttribute("y", p.y); if (tool === "text") { n.textContent = "Text"; n.setAttribute("font-size", "18"); } if (tool === "connector") { n.setAttribute("x2", p.x); n.setAttribute("y2", p.y); } if (tool === "circle") { n.setAttribute("cx", p.x); n.setAttribute("cy", p.y); n.setAttribute("rx", 1); n.setAttribute("ry", 1); } svg.append(n); select(n); if (tool === "text") beginTextEdit(n);
     });

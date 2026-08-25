@@ -20,7 +20,7 @@
     origin.textContent = editorOrigin;
     const send = (message) => frame.contentWindow.postMessage(JSON.stringify(message), editorOrigin);
     const defaultXml = "<canvas version='1'><shape type='text' x='80' y='90' font-size='18'>Interview canvas</shape></canvas>";
-    const loadSnapshot = () => { const raw = localStorage.getItem(snapshotKey); try { const snapshot = raw ? JSON.parse(raw) : null; return snapshot?.xml ? snapshot : { xml: raw || defaultXml, revision: 0 }; } catch { return { xml: defaultXml, revision: 0 }; } };
+    const loadSnapshot = () => { const raw = localStorage.getItem(snapshotKey); try { const snapshot = raw ? JSON.parse(raw) : null; return snapshot?.xml ? snapshot : { xml: raw || defaultXml, revision: 0 }; } catch { return { xml: raw || defaultXml, revision: 0 }; } };
 
     window.addEventListener("message", (event) => {
       if (event.origin !== editorOrigin || event.source !== frame.contentWindow) return;
