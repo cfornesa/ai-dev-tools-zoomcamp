@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Interview Canvas API
+  version: 0.1.0
+  description: REST contract for authentication, sessions, invitations, canvas authorization, and evaluation. Public signup is disabled; the current login is a development compatibility path. Planned Google ID-token verification and reCAPTCHA risk assessment are documented in docs/authentication.md and are not implied by this MVP contract.
+servers:
+  - url: http://localhost:8000
+paths:
+  /health:
+    get:
+      summary: Database-backed health check
+      responses: {"200": {$ref: '#/components/responses/Health'}, "503": {$ref: '#/components/responses/Unavailable'}}
+  /auth/login:
+    post:
+      summary: Authenticate a development administrator
+      requestBody: {$ref: '#/components/requestBodies/Login'}
+      responses: {"200": {$ref: '#/components/responses/Token'}, "401": {$ref: '#/components/responses/Unauthorized'}, "429": {$ref: '#/components/responses/RateLimited'}, "503": {$ref: '#/components/responses/Unavailable'}}
+  /auth/google:
+    post:
+      summary: Verify a Google Identity Services credential
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [credential], properties: {credential: {type: string}, recaptcha_token: {type: string}}}}}}
+      responses: {"200": {description: Authenticated user and session cookie}, "401": {$ref: '#/components/responses/Unauthorized'}, "403": {$ref: '#/components/responses/Forbidden'}, "409": {$ref: '#/components/responses/Conflict'}, "503": {$ref: '#/components/responses/Unavailable'}}
+  /auth/session:
+    get:
+      summary: Read the current server-managed session
+      responses: {"200": {description: Current user}, "401": {$ref: '#/components/responses/Unauthorized'}}
+  /auth/logout:
+    post:
+      summary: Revoke the current server-managed session
+      responses: {"200": {description: Session revoked}, "403": {$ref: '#/components/responses/Forbidden'}}
+  /admin/sessions:
+    get:
+      security: [{bearerAuth: []}]
+      responses: {"200": {$ref: '#/components/responses/Sessions'}, "401": {$ref: '#/components/responses/Unauthorized'}}
+    post:
+      security: [{bearerAuth: []}]
+      requestBody: {$ref: '#/components/requestBodies/Session'}
+      responses: {"200": {$ref: '#/components/responses/Session'}, "401": {$ref: '#/components/responses/Unauthorized'}, "422": {$ref: '#/components/responses/Validation'}}
+  /admin/sessions/{sid}:
+    parameters: [{name: sid, in: path, required: true, schema: {type: string, format: uuid}}]
+    get: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Session'}, "401": {$ref: '#/components/responses/Unauthorized'}, "404": {$ref: '#/components/responses/NotFound'}}
+    patch: {security: [{bearerAuth: []}], requestBody: {$ref: '#/components/requestBodies/Session'}, responses: {"200": {$ref: '#/components/responses/Session'}, "409": {$ref: '#/components/responses/Conflict'}, "422": {$ref: '#/components/responses/Validation'}}
+  /admin/sessions/{sid}/invite:
+    post: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Invite'}, "401": {$ref: '#/components/responses/Unauthorized'}, "404": {$ref: '#/components/responses/NotFound'}}
+  /admin/sessions/{sid}/invite/revoke:
+    post: {security: [{bearerAuth: []}], responses: {"200": {description: Revocation result}, "401": {$ref: '#/components/responses/Unauthorized'}}
+  /admin/sessions/{sid}/invite/regenerate:
+    post: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Invite'}, "401": {$ref: '#/components/responses/Unauthorized'}}
+  /admin/sessions/{sid}/invites:
+    get: {security: [{bearerAuth: []}], responses: {"200": {description: Invitation status list}, "401": {$ref: '#/components/responses/Unauthorized'}}
+  /invites/redeem:
+    post:
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [token], properties: {token: {type: string}}}}}}
+      responses: {"200": {description: Scoped candidate credential}, "400": {$ref: '#/components/responses/InvalidInvite'}, "429": {$ref: '#/components/responses/RateLimited'}}
+  /sessions/{sid}:
+    get: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Session'}, "401": {$ref: '#/components/responses/Unauthorized'}, "403": {$ref: '#/components/responses/Forbidden'}}
+  /sessions/{sid}/canvas-token:
+    post: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/CanvasToken'}, "403": {$ref: '#/components/responses/Forbidden'}}
+  /scorecards/default:
+    get: {security: [{bearerAuth: []}], responses: {"200": {description: Scorecard categories}, "401": {$ref: '#/components/responses/Unauthorized'}}
+  /admin/sessions/{sid}/evaluation:
+    get: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Evaluation'}, "404": {$ref: '#/components/responses/NotFound'}}
+    post: {security: [{bearerAuth: []}], requestBody: {$ref: '#/components/requestBodies/Evaluation'}, responses: {"200": {description: Evaluation identifier}, "409": {$ref: '#/components/responses/Conflict'}, "422": {$ref: '#/components/responses/Validation'}}
+  /admin/sessions/{sid}/end:
+    post: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/Session'}, "409": {$ref: '#/components/responses/Conflict'}}
+  /admin/sessions/{sid}/extend:
+    post: {security: [{bearerAuth: []}], requestBody: {required: true, content: {application/json: {schema: {type: object, required: [minutes], properties: {minutes: {type: integer, minimum: 1}}}}}}, responses: {"200": {$ref: '#/components/responses/Session'}, "409": {$ref: '#/components/responses/Conflict'}}
+  /admin/sessions/{sid}/canvas-token:
+    post: {security: [{bearerAuth: []}], responses: {"200": {$ref: '#/components/responses/CanvasToken'}, "404": {$ref: '#/components/responses/NotFound'}}
+  /admin/sessions/{sid}/audit:
+    get: {security: [{bearerAuth: []}], responses: {"200": {description: Audit events}, "401": {$ref: '#/components/responses/Unauthorized'}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  schemas:
+    Error: {type: object, required: [detail], properties: {detail: {type: string}}}
+    Session: {type: object, required: [id, candidate_name, state, scheduled_at, duration_minutes], properties: {id: {type: string}, candidate_name: {type: string}, candidate_email: {type: string, format: email, nullable: true}, facilitator_id: {type: string, nullable: true}, state: {type: string, enum: [scheduled, active, expired-pending-facilitator-action, completed]}, scheduled_at: {type: string, format: date-time}, duration_minutes: {type: integer, minimum: 1}, end_at: {type: string, format: date-time, nullable: true}}}
+    SessionInput: {type: object, required: [candidate_name, scheduled_at, duration_minutes], properties: {candidate_name: {type: string}, candidate_email: {type: string, format: email, nullable: true}, facilitator_id: {type: string, nullable: true}, scheduled_at: {type: string, format: date-time}, duration_minutes: {type: integer, minimum: 1}}}
+    Invite: {type: object, required: [url, expires_at], properties: {url: {type: string, format: uri}, expires_at: {type: string, format: date-time}}}
+    CanvasToken: {type: object, required: [token, room], properties: {token: {type: string}, room: {type: string}}}
+    Evaluation: {type: object, properties: {recommendation: {type: string}, overall_rating: {type: integer, nullable: true}, overall_notes: {type: string, nullable: true}, scores: {type: array, items: {type: object}}}}
+  requestBodies:
+    Login: {required: true, content: {application/json: {schema: {type: object, required: [email, password], properties: {email: {type: string, format: email}, password: {type: string, format: password}, recaptcha_token: {type: string}}}}}}
+    Session: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SessionInput'}}}}
+    Evaluation: {required: true, content: {application/json: {schema: {type: object, required: [scores, recommendation], properties: {scores: {type: array, items: {type: object}}, recommendation: {type: string}, overall_rating: {type: integer, nullable: true}, overall_notes: {type: string}, private_notes: {type: string}}}}}}
+  responses:
+    Health: {description: Healthy database connection, content: {application/json: {schema: {type: object, properties: {ok: {type: boolean}}}}}}
+    Token: {description: Bearer credential, content: {application/json: {schema: {type: object, required: [access_token, token_type], properties: {access_token: {type: string}, token_type: {type: string}}}}}}
+    Session: {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+    Sessions: {description: Session list, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Session'}}}}}
+    Invite: {description: Candidate invite URL, content: {application/json: {schema: {$ref: '#/components/schemas/Invite'}}}}
+    CanvasToken: {description: Short-lived canvas credential, content: {application/json: {schema: {$ref: '#/components/schemas/CanvasToken'}}}}
+    Evaluation: {description: Private evaluation, content: {application/json: {schema: {$ref: '#/components/schemas/Evaluation'}}}}
+    Unauthorized: {description: Authentication required, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Forbidden: {description: Scope or role denied, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    NotFound: {description: Resource not found, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    InvalidInvite: {description: Invalid, expired, revoked, or redeemed invitation, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Validation: {description: Validation failure, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    RateLimited: {description: Too many requests, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Conflict: {description: Invalid lifecycle transition, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Unavailable: {description: Dependency unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+websockets:
+  /ws/sessions/{sid}:
+    description: Requires an admin or session-scoped candidate bearer token; origin is checked against WS_ALLOWED_ORIGINS. Events include presence and authoritative session lifecycle/timer state.
+canvasAuthorization:
+  room: Opaque session identifier
+  token: Backend-issued short-lived canvas JWT with matching session_id claim
+  boundary: Canvas-sync owns document synchronization; FastAPI owns invitation, lifecycle, and evaluation authorization

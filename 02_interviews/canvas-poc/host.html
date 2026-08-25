@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8">
+  <title>Canvas host POC</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 2rem; background: #f5f7fb; }
+    iframe { width: 100%; height: 650px; border: 1px solid #aab4c5; background: white; }
+    code { background: #e7ebf2; padding: .15rem .3rem; }
+  </style>
+  <h1>Self-hosted canvas host</h1>
+  <p id="status" role="status">Loading local editor…</p>
+  <p>This host accepts messages only from <code id="origin"></code>.</p>
+  <iframe id="editor" title="Local canvas editor" src="/editor.html"></iframe>
+  <script>
+    const editorOrigin = window.location.origin;
+    const frame = document.querySelector("#editor");
+    const status = document.querySelector("#status");
+    const origin = document.querySelector("#origin");
+    const snapshotKey = "canvas-poc-xml";
+    origin.textContent = editorOrigin;
+    const send = (message) => frame.contentWindow.postMessage(JSON.stringify(message), editorOrigin);
+    const defaultXml = "<canvas version='1'><shape type='text' x='80' y='90' font-size='18'>Interview canvas</shape></canvas>";
+    const loadSnapshot = () => { const raw = localStorage.getItem(snapshotKey); try { const snapshot = raw ? JSON.parse(raw) : null; return snapshot?.xml ? snapshot : { xml: raw || defaultXml, revision: 0 }; } catch { return { xml: raw || defaultXml, revision: 0 }; } };
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== editorOrigin || event.source !== frame.contentWindow) return;
+      let message;
+      try { message = JSON.parse(event.data); } catch { return; }
+      if (message.event === "init") {
+        status.textContent = "Editor initialized locally";
+        send({ action: "load", ...loadSnapshot() });
+      }
+      if (message.event === "saved") {
+        localStorage.setItem(snapshotKey, JSON.stringify({ xml: message.xml, revision: message.revision }));
+        status.textContent = `Saved revision ${message.revision} (${message.xml.length} XML characters)`;
+      }
+      if (message.event === "state") status.textContent = `Editor initialized locally · ${message.text}`;
+      if (message.event === "error") status.textContent = `Editor error: ${message.message}`;
+      if (message.event === "request-load") send({ action: "load", ...loadSnapshot() });
+    });
+  </script>
+</html>

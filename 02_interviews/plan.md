@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Build a local/demo-ready collaborative technical-interview application. Administrators create and manage interview sessions. Candidates join a single assigned session through a signed, expiring invite link. Interviewers and candidates collaborate live on a tldraw canvas, while facilitators manage session timing and participants. After a session ends, evaluators submit structured scorecards and private freeform notes.
+Build a local/demo-ready collaborative technical-interview application. Administrators create and manage interview sessions. Candidates join a single assigned session through a signed, expiring invite link. Interviewers and candidates collaborate live on a self-hosted XML canvas, while facilitators manage session timing and participants. After a session ends, evaluators submit structured scorecards and private freeform notes.
 
 This document records the agreed MVP decisions and provides implementation boundaries for the repository.
 
@@ -13,16 +13,16 @@ This document records the agreed MVP decisions and provides implementation bound
 | Repository layout | Monorepo-style repository with `/frontend` and `/backend` |
 | Frontend application | One React application containing both admin-dashboard and live-interview experiences |
 | Frontend tooling | Vite, React, TypeScript, React Router |
-| Canvas sync service | A separate TypeScript tldraw Sync service at `/frontend/canvas-sync` |
+| Canvas sync service | A separate TypeScript self-hosted XML canvas sync service at `/frontend/canvas-sync` |
 | Backend | Python FastAPI application in `/backend` |
 | Live session events | WebSockets for bidirectional application events such as presence, timer state, facilitator controls, and session state |
-| Canvas collaboration | tldraw Sync handles canvas document collaboration independently of application WebSockets |
+| Canvas collaboration | self-hosted XML canvas sync handles canvas document collaboration independently of application WebSockets |
 | Admin access | Authenticated administrator accounts |
 | Candidate access | Signed, expiring, invite-only URLs scoped to one interview session |
 | Candidate invitation delivery | Admin manually copies a generated candidate URL from the dashboard |
 | Database | PostgreSQL from the first iteration, run through Docker Compose |
 | ORM and migrations | SQLAlchemy and Alembic |
-| Workspace scope | Collaborative tldraw canvas only for the MVP |
+| Workspace scope | Collaborative self-hosted XML canvas only for the MVP |
 | Future workspace scope | Plan boundaries for shared code editing and isolated code execution, but do not ship either in v1 |
 | Evaluation | Structured scorecard plus private freeform evaluator notes |
 | Session completion | Facilitator may end a session manually; timer expiry prompts end or extend; ending opens evaluation |
@@ -75,7 +75,7 @@ This document records the agreed MVP decisions and provides implementation bound
 └── plan.md
 ```
 
-The frontend remains one deployable React application. Role-aware React Router routes separate administrator workflows from candidate/interviewer session workflows. The tldraw Sync service is deliberately colocated under `/frontend/canvas-sync` because it is a TypeScript service supporting the frontend canvas stack, although it runs as its own process/container.
+The frontend remains one deployable React application. Role-aware React Router routes separate administrator workflows from candidate/interviewer session workflows. The self-hosted XML canvas sync service is deliberately colocated under `/frontend/canvas-sync` because it is a TypeScript service supporting the frontend canvas stack, although it runs as its own process/container.
 
 ## 4. Core Roles and Access
 
@@ -115,9 +115,9 @@ An administrator may act as the interviewer/facilitator in the MVP. The authoriz
 2. The frontend validates the session invitation with the backend and establishes a scoped candidate session.
 3. The candidate enters the live workspace.
 4. The interviewer/facilitator joins through the authenticated application.
-5. Both participants collaborate in the session-specific tldraw room.
+5. Both participants collaborate in the session-specific canvas room.
 6. Application WebSockets synchronize participant presence, timer state, facilitator actions, and session status.
-7. tldraw Sync independently synchronizes canvas document changes.
+7. self-hosted XML canvas sync independently synchronizes canvas document changes.
 
 ### Timer and completion
 
@@ -161,7 +161,7 @@ Use application WebSockets for state that belongs to the interview product rathe
 - Facilitator controls, including end and extend.
 - Optional ephemeral signals, such as “facilitator is viewing” or lightweight notifications.
 
-Do not duplicate tldraw document synchronization in the FastAPI WebSocket channel. Canvas data should use the tldraw Sync service and a deterministic room identifier derived from the authorized session.
+Do not duplicate canvas document synchronization in the FastAPI WebSocket channel. Canvas data should use the self-hosted XML canvas sync service and a deterministic room identifier derived from the authorized session.
 
 ### Authentication and invitation security
 
@@ -215,7 +215,7 @@ Suggested routes:
 
 The live workspace should compose the following independently testable areas:
 
-- Canvas pane containing the tldraw editor connected to a session-specific tldraw Sync room.
+- Canvas pane containing the canvas editor connected to a session-specific self-hosted XML canvas sync room.
 - Session header with participant state, session state, and synchronized timer.
 - Facilitator controls for ending and extending the session, visible only to users with facilitator authority.
 - Status/notification layer for joining, waiting, expiration, extension, disconnection, and completion events.
@@ -234,7 +234,7 @@ The dashboard should support the MVP workflow without requiring email delivery o
 
 ## 8. Canvas Sync Boundary
 
-The service at `/frontend/canvas-sync` is a separate TypeScript/tldraw Sync process. It must:
+The service at `/frontend/canvas-sync` is a separate TypeScript/self-hosted XML canvas sync process. It must:
 
 - Create or authorize one room per interview session.
 - Use a room name derived from an opaque session identifier rather than candidate personal data.
@@ -242,7 +242,7 @@ The service at `/frontend/canvas-sync` is a separate TypeScript/tldraw Sync proc
 - Avoid becoming the source of truth for interview lifecycle state, invitations, or evaluation data.
 - Run as an independent Docker Compose service.
 
-The FastAPI backend remains responsible for whether a user may access a session. The integration should define a trusted handoff, such as a short-lived canvas access token or backend-verified session credential, before granting tldraw room access.
+The FastAPI backend remains responsible for whether a user may access a session. The integration should define a trusted handoff, such as a short-lived canvas access token or backend-verified session credential, before granting canvas room access.
 
 ## 9. Evaluation Model
 
@@ -276,7 +276,7 @@ The initial environment is Docker Compose only. The compose file should define a
 | `postgres` | Persistent PostgreSQL database with a named volume |
 | `backend` | FastAPI REST API and application WebSocket server |
 | `frontend` | Vite React application for local development/demo use |
-| `canvas-sync` | TypeScript tldraw Sync service |
+| `canvas-sync` | TypeScript self-hosted XML canvas sync service |
 
 Configuration should be environment-driven. Provide `.env.example` with non-secret defaults and required variable names, including:
 
@@ -306,7 +306,7 @@ Use a named PostgreSQL volume so data survives container restarts. Include healt
 
 ### Canvas integration
 
-- Verify the same authorized session participants enter the same tldraw room.
+- Verify the same authorized session participants enter the same canvas room.
 - Verify a candidate cannot join a room for a different session.
 - Verify canvas-sync unavailability produces a clear recoverable UI state without corrupting session lifecycle data.
 
@@ -331,7 +331,7 @@ Use a named PostgreSQL volume so data survives container restarts. Include healt
 - Implement invitation validation and scoped candidate access.
 - Create the live session route and session metadata endpoint.
 - Implement FastAPI application WebSockets for presence, timer, and facilitator actions.
-- Integrate tldraw with `/frontend/canvas-sync` using authorized, session-specific rooms.
+- Integrate canvas with `/frontend/canvas-sync` using authorized, session-specific rooms.
 
 ### Milestone 4: Completion and evaluation
 
@@ -377,7 +377,7 @@ The product is intended for technical interviews, which may eventually require a
 
 ### Decision
 
-Ship only the tldraw collaborative canvas in the MVP. Design the domain and frontend boundaries so a future interview workspace can contain multiple artifact/surface types, including `canvas`, `code_editor`, and `execution`.
+Ship only the canvas collaborative canvas in the MVP. Design the domain and frontend boundaries so a future interview workspace can contain multiple artifact/surface types, including `canvas`, `code_editor`, and `execution`.
 
 Do not add a shared editor or any code-execution feature in v1.
 
@@ -402,7 +402,7 @@ The following choices are intentionally deferred until implementation, while rem
 - Exact signed-token format and whether candidate link redemption creates a short-lived scoped cookie or bearer credential.
 - Rating scale range and initial default scorecard categories.
 - Whether a session supports one evaluator or multiple independent evaluator submissions in the first UI.
-- Exact tldraw Sync authorization adapter and room-access token mechanism.
+- Exact self-hosted XML canvas sync authorization adapter and room-access token mechanism.
 - Whether the Vite frontend runs as a development server only or is served as a built static asset in a demo-oriented container configuration.
 
 These choices must preserve the core constraints: administrators are authenticated, candidates are constrained to an expiring session invite, PostgreSQL is authoritative, FastAPI owns application state, and untrusted code execution remains out of scope and isolated if introduced later.
