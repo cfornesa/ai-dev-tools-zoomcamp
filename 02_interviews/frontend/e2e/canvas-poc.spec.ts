@@ -7,9 +7,13 @@ test.describe("self-hosted canvas protocol POC", () => {
     await page.goto(`${process.env.CANVAS_POC_URL}/host.html`);
     const editor = page.frameLocator("iframe[title='Local canvas editor']");
     await expect(page.getByRole("status")).toContainText("Editor initialized locally");
-    for (const tool of ["Freehand", "Text", "Move", "Rectangle", "Connector", "Undo", "Redo", "Zoom +", "Zoom −"]) {
+    for (const tool of ["Select", "Hand / Pan", "Freehand", "Text", "Rectangle", "Connector", "Undo", "Redo", "Zoom +", "Zoom −", "Reset / Fit"]) {
       await expect(editor.getByRole("button", { name: tool })).toBeVisible();
     }
+    await expect(editor.getByRole("button", { name: "Select" })).toHaveAttribute("aria-pressed", "true");
+    await editor.getByRole("button", { name: "Hand / Pan" }).click();
+    await expect(editor.getByRole("button", { name: "Hand / Pan" })).toHaveAttribute("aria-pressed", "true");
+    await editor.getByRole("button", { name: "Reset / Fit" }).click();
     await editor.getByRole("button", { name: "Rectangle" }).click();
     await editor.locator("#canvas").dispatchEvent("pointerdown", { clientX: 100, clientY: 100 });
     await editor.locator("#canvas").dispatchEvent("pointerup");
