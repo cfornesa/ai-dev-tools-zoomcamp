@@ -34,7 +34,10 @@ test.describe("self-hosted canvas protocol POC", () => {
     await expect(page.getByRole("status")).toContainText("Saved revision");
     await editor.getByRole("button", { name: "Delete" }).click();
     await expect(editor.locator("svg rect")).toHaveCount(0);
+    await expect(editor.locator("svg .selected")).toHaveCount(0);
     await editor.getByRole("button", { name: "Reload XML" }).click();
+    await expect(editor.locator("svg rect")).toHaveCount(1);
+    await editor.getByRole("button", { name: "Delete" }).click();
     await expect(editor.locator("svg rect")).toHaveCount(1);
   });
 
