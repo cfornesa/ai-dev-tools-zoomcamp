@@ -16,6 +16,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .shell nav { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .shell nav a, .shell nav button { min-height: var(--control-height); }
 .card, main { width: min(calc(100% - 2 * var(--page-gutter)), 880px); margin: clamp(1rem, 5vw, 3rem) auto; padding: clamp(1rem, 4vw, 2rem); background: #fff; border: 1px solid #dfe3eb; border-radius: 12px; box-shadow: 0 4px 16px #1720330d; }
+.detail-card { max-width: 960px; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); line-height: 1.15; overflow-wrap: anywhere; }
+h2 { font-size: clamp(1.1rem, 2.5vw, 1.35rem); line-height: 1.25; }
+p { line-height: 1.5; }
 .narrow { max-width: 520px; }
 form { display: grid; gap: 1rem; }
 label { display: grid; gap: .35rem; font-weight: 600; }
@@ -33,6 +37,13 @@ button.destructive:hover, .button.destructive:hover { background: #7f1828; }
 .sessions { list-style: none; padding: 0; }
 .sessions li { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #e5e8ef; }
 .invite { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e8ef; }
+.detail-section { margin-top: 1.75rem; }
+.detail-meta { display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: #4c5870; }
+.action-group { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: 1rem; }
+.action-group + .action-group { margin-top: .75rem; }
+.action-group .destructive { margin-left: .25rem; }
+.invite-status { margin: .5rem 0; }
+.supporting { color: #4c5870; font-size: .875rem; }
 .invite input { width: 100%; margin: .75rem 0; }
 .error { color: #a32133; }
 .status { color: #3157d5; }
@@ -52,6 +63,9 @@ fieldset textarea { width: 100%; }
   .sessions li { align-items: flex-start; flex-direction: column; }
   .controls > * { flex: 1 1 100%; }
   .controls input { width: 100%; }
+  .action-group { align-items: stretch; }
+  .action-group > * { flex: 1 1 100%; }
+  .action-group .destructive { margin-left: 0; }
   .canvas-editor { min-height: 55dvh; margin-bottom: env(safe-area-inset-bottom); }
   .canvas-frame { min-height: 260px; }
 }
