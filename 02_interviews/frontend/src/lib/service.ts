@@ -24,7 +24,10 @@ export interface InterviewService{
 const API=import.meta.env.VITE_API_URL||"http://localhost:8000";
 async function fetchJson(path:string,init:RequestInit={},scope:"admin"|"candidate"|"public"="admin"){
   const token=scope==="admin"?localStorage.getItem("admin_token"):scope==="candidate"?localStorage.getItem("candidate_token"):undefined;
-  const response=await fetch(`${API}${path}`,{...init,credentials:"include",headers:{"content-type":"application/json",...(token&&token!=="session-cookie"?{Authorization:`Bearer ${token}`}:{}) ,...(init.headers||{})}});
+  const csrf=document.cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("app_csrf="))?.split("=")[1]||"";
+  const method=(init.method||"GET").toUpperCase();
+  const cookieMutation=token==="session-cookie"&&method!=="GET"&&method!=="HEAD";
+  const response=await fetch(`${API}${path}`,{...init,credentials:"include",headers:{"content-type":"application/json",...(token&&token!=="session-cookie"?{Authorization:`Bearer ${token}`}:{}) ,...(cookieMutation?{"X-CSRF-Token":decodeURIComponent(csrf)}:{}),...(init.headers||{})}});
   const body=await response.json().catch(()=>({detail:"Request failed"}));
   if(!response.ok)throw new ServiceError(body.detail||"Request failed",response.status);
   return body;

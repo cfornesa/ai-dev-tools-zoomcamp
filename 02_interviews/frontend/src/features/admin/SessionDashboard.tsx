@@ -49,7 +49,7 @@ export function SessionDashboard() {
 
   const visible = useMemo(() => items
     .filter(session => matches(session, query))
-    .filter(session => status === "all" || session.state === status)
+    .filter(session => status === "all" || (session.state === "expired-pending-facilitator-action" ? status === "expired" : session.state === status))
     .sort((left, right) => {
       if (sort === "candidate-asc") return left.candidate_name.localeCompare(right.candidate_name) || left.id.localeCompare(right.id);
       const direction = sort === "scheduled-desc" ? -1 : 1;

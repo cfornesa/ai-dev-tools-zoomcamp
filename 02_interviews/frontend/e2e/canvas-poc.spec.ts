@@ -7,21 +7,28 @@ test.describe("self-hosted canvas protocol POC", () => {
     await page.goto(`${process.env.CANVAS_POC_URL}/host.html`);
     const editor = page.frameLocator("iframe[title='Local canvas editor']");
     await expect(page.getByRole("status")).toContainText("Editor initialized locally");
-    for (const tool of ["Select", "Hand / Pan", "Freehand", "Text", "Rectangle", "Connector", "Undo", "Redo", "Zoom +", "Zoom −", "Reset / Fit"]) {
+    for (const tool of ["Select / Move", "Hand / Pan", "Freehand", "Text", "Rectangle", "Square", "Circle / Ellipse", "Connector", "Undo", "Redo", "Zoom +", "Zoom −", "Reset / Fit"]) {
       await expect(editor.getByRole("button", { name: tool })).toBeVisible();
     }
-    await expect(editor.getByRole("button", { name: "Select" })).toHaveAttribute("aria-pressed", "true");
+    await expect(editor.getByRole("button", { name: "Select / Move" })).toHaveAttribute("aria-pressed", "true");
     await editor.getByRole("button", { name: "Hand / Pan" }).click();
     await expect(editor.getByRole("button", { name: "Hand / Pan" })).toHaveAttribute("aria-pressed", "true");
     await editor.getByRole("button", { name: "Reset / Fit" }).click();
     await editor.getByRole("button", { name: "Rectangle" }).click();
-    await editor.locator("#canvas").dispatchEvent("pointerdown", { clientX: 100, clientY: 100 });
-    await editor.locator("#canvas").dispatchEvent("pointerup");
+    const canvasBox = await editor.locator("#canvas").boundingBox();
+    if (!canvasBox) throw new Error("canvas is not visible");
+    await page.mouse.move(canvasBox.x + 100, canvasBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(canvasBox.x + 180, canvasBox.y + 150);
+    await page.mouse.up();
     await expect(editor.locator("svg rect")).toHaveCount(1);
-    await editor.getByRole("button", { name: "Move" }).click();
-    await editor.locator("svg rect").dispatchEvent("pointerdown", { clientX: 100, clientY: 100 });
-    await editor.locator("svg rect").dispatchEvent("pointermove", { clientX: 130, clientY: 130 });
-    await editor.locator("svg rect").dispatchEvent("pointerup");
+    await editor.getByRole("button", { name: "Select / Move" }).click();
+    const rectangleBox = await editor.locator("svg rect").boundingBox();
+    if (!rectangleBox) throw new Error("rectangle is not visible");
+    await page.mouse.move(rectangleBox.x + 10, rectangleBox.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(rectangleBox.x + 40, rectangleBox.y + 40);
+    await page.mouse.up();
     await editor.getByRole("button", { name: "Save XML" }).click();
     await expect(page.getByRole("status")).toContainText("Saved revision");
     await editor.getByRole("button", { name: "Delete" }).click();

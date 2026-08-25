@@ -100,3 +100,23 @@ test("canvas pointer tools, text editing, cancellation, and narrow layout",async
   await page.mouse.up();
   expect(await page.getByRole("status").innerText()).toContain("Gesture cancelled");
 });
+
+test("circle creation survives a reverse drag over existing shapes",async({page})=>{
+  await page.setViewportSize({width:390,height:720});
+  await page.goto(editorUrl);
+  const canvas=page.locator("#canvas");
+  const box=await canvasBox(page);
+  await page.getByRole("button",{name:"Connector"}).click();
+  await page.mouse.move(box.x+box.width*.15,box.y+box.height*.15);
+  await page.mouse.down();
+  await page.mouse.move(box.x+box.width*.8,box.y+box.height*.65,{steps:3});
+  await page.mouse.up();
+  await page.getByRole("button",{name:"Circle / Ellipse"}).click();
+  await page.mouse.move(box.x+box.width*.8,box.y+box.height*.65);
+  await page.mouse.down();
+  await page.mouse.move(box.x+box.width*.55,box.y+box.height*.35,{steps:3});
+  await page.mouse.up();
+  const circle=canvas.locator('ellipse[data-tool="circle"]');
+  await expect(circle).toHaveCount(1);
+  expect(await circle.getAttribute("rx")).toBe(await circle.getAttribute("ry"));
+});
